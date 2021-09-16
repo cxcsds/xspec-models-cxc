@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.0.9
+
+Support C-style models. This bumps the number of supported models to
+209 (there are 8 new models in this release).
+
 ## 0.0.8
 
 An internal change to better use XSPEC types and which simplifies the

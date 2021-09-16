@@ -55,12 +55,12 @@ module provides access to
 
 | Type           | Total  | Supported |
 | -------------- | ------ | --------- |
-| additive       |    148 |       141 |
-| multiplicative |     61 |        60 |
+| additive       |    148 |       148 |
+| multiplicative |     61 |        61 |
 | convolution    |     22 |         0 |
 | acn            |      1 |         0 |
 | C++            |    135 |       115 |
-| C              |      8 |         0 |
+| C              |      8 |         8 |
 | FORTRAN        |     89 |        86 |
 
 I had to
@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.8'
+'0.0.9'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -106,6 +106,7 @@ DESCRIPTION
     bapec
 ...
     zpowerlw
+    bwcycl
 
     Multiplicative models
     ---------------
@@ -318,7 +319,7 @@ Note that the return values have units of photons/cm^2/s as this is an
 XSPEC [additive
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Additive.html).
 
-### agnslim
+### AGNSLIM
 
 The `agnslim` additive model is a FORTRAN model in 12.12.0:
 
@@ -355,6 +356,41 @@ agnslim(...) method of builtins.PyCapsule instance
 >>> y
 array([5.6430912e-01, 4.2761257e-01, 3.3259588e-01, ..., 2.6246285e-06,
        2.6130140e-06, 2.6132632e-06], dtype=float32)
+```
+
+### BWCYCL
+
+This is a C-style additive model:
+
+```
+bwcycl     12  0.         1.e20           c_beckerwolff    add  0
+Radius km      10        5      5       20      20      -1
+Mass   Solar   1.4      1       1       3       3       -1
+csi     " "     1.5      0.01    0.01    20         20        0.01
+delta   " "     1.8      0.01    0.01    20         20        0.01
+B       1e12G   4        0.01    0.01   100        100        0.01
+Mdot    1e17g/s 1        1e-6   1e-6     1e6        1e6        0.01
+Te      keV     5        0.1     0.1    100        100        0.01
+r0      m       44        10    10     1000       1000        0.01
+D       kpc     5          1     1       20         20        -1
+BBnorm  " "     0          0     0       100       100        -1
+CYCnorm " "     1          -1     -1       100       100        -1
+FFnorm  " "     1          -1     -1       100       100        -1
+```
+
+```
+>>> help(x.bwcycl)
+Help on built-in function bwcycl in module xspec_models_cxc:
+
+bwcycl(...) method of builtins.PyCapsule instance
+    bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+
+    The XSPEC additive bwcycl model (12 parameters).
+
+>>> pars = [10, 1.3, 1.5, 1.8, 4, 1, 5, 44, 5, 0, 1, 1]
+>>> x.bwcycl(pars, [0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56])
+array([0.00030135, 0.00030085, 0.00030123, 0.00030297, 0.00030657,
+       0.00031248])
 ```
 
 ### TBABS

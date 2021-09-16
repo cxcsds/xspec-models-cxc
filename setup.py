@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -66,11 +66,9 @@ addmodels = []
 mulmodels = []
 f77models = []
 cxxmodels = []
+cmodels = []
 
 def wrapmod(model):
-
-    if model.language == 'C style':
-        return f'    // Skipping C {model.name} / {model.funcname}'
 
     npars = len(model.pars)
     if model.modeltype == 'Add':
@@ -90,6 +88,9 @@ def wrapmod(model):
     elif model.language == 'C++ style':
         out += f'_C<C_{model.funcname}'
         cxxmodels.append(model.funcname)
+    elif model.language == 'C style':
+        out += f'_C<{model.funcname}'
+        cmodels.append(model.funcname)
     else:
         assert False, (model.name, model.funcname, model.language)
 
@@ -130,6 +131,7 @@ print(f"Number of models:  {len(mstrs)}")
 print(f"   additive:       {len(addmodels)}")
 print(f"   multiplicative: {len(mulmodels)}")
 print(f"   C++:            {len(cxxmodels)}")
+print(f"   C:              {len(cmodels)}")
 print(f"   FORTRAN:        {len(f77models)}")
 print("###############################################")
 
