@@ -42,6 +42,58 @@
 
 namespace py = pybind11;
 
+// The C_xxx interface looks like
+//
+//   void C_apec(const double* energy, int nFlux, const double* params,
+//        int spectrumNumber, double* flux, double* fluxError,
+//        const char* initStr);
+//
+// and the CXX_xxx interface is
+//
+//   void CXX_apec(const RealArray& energyArray, const RealArray& params,
+//        int spectrumNumber, RealArray& fluxArray, RealArray& fluxErrArray,
+//        const string& initString);
+//
+// where RealArray is defined in xsTypes.h as
+//
+//   typedef double Real;
+//   typedef std::valarray<Real> RealArray;
+//
+// but is it safe to assume this? We avoid this error by wrapping the C_xxx
+// version.
+//
+template <void (*model)(const double* energy, int nFlux, const double* params,
+			int spectrumNumber, double* flux, double* fluxError,
+			const char* initStr),
+	  int NumPars>
+py::array_t<Real> wrapper(py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
+
+  py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1)
+    throw std::runtime_error("pars and energyArray must be 1D");
+
+  if (pbuf.size != NumPars) {
+    std::ostringstream err;
+    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
+    throw std::runtime_error(err.str());
+  }
+
+  if (ebuf.size < 3)
+    throw std::runtime_error("Expected at leat 3 bin edges");
+
+  auto result = py::array_t<Real>(ebuf.size - 1);
+
+  py::buffer_info obuf = result.request();
+
+  double *pptr = static_cast<Real *>(pbuf.ptr);
+  double *eptr = static_cast<Real *>(ebuf.ptr);
+  double *optr = static_cast<Real *>(obuf.ptr);
+
+  model(eptr, ebuf.size - 1, pptr, 1, optr, NULL, "");
+  return result;
+}
+
+
 PYBIND11_MODULE(xspec_models_cxc, m) {
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
@@ -113,25 +165,6 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
     // - should be auto-generated
     // - what interface do we use?
     //
-    // The C_xxx interface looks like
-    //
-    //   void C_apec(const double* energy, int nFlux, const double* params,
-    //        int spectrumNumber, double* flux, double* fluxError,
-    //        const char* initStr);
-    //
-    // and the CXX_xxx interface is
-    //
-    //   void CXX_apec(const RealArray& energyArray, const RealArray& params,
-    //        int spectrumNumber, RealArray& fluxArray, RealArray& fluxErrArray,
-    //        const string& initString);
-    //
-    // where RealArray is defined in xsTypes.h as
-    //
-    //   typedef double Real;
-    //   typedef std::valarray<Real> RealArray;
-    //
-    // but is it safe to assume this?
-    //
     // The apec entry in model.dat for heasoft-6.29 is
     //
     //   apec           3  0.         1.e20           C_apec    add  0
@@ -139,29 +172,6 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
     //   Abundanc " "    1.    0.      0.      5.        5.        -0.001
     //   Redshift " "    0.   -0.999  -0.999   10.       10.       -0.01
     //
-    m.def("apec",
-	  [](py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
+    m.def("apec", wrapper<C_apec, 3>, "The XSPEC apec model.");
 
-	    py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
-	    if (pbuf.ndim != 1 || ebuf.ndim != 1)
-	      throw std::runtime_error("Pars or energy array must be 1D");
-
-	    if (pbuf.size != 3)
-	      throw std::runtime_error("Expected 3 parameters");
-
-	    if (ebuf.size < 3)
-	      throw std::runtime_error("Expected at leat 3 bin edges");
-
-	    auto result = py::array_t<Real>(ebuf.size - 1);
-
-	    py::buffer_info obuf = result.request();
-
-	    double *pptr = static_cast<Real *>(pbuf.ptr);
-	    double *eptr = static_cast<Real *>(ebuf.ptr);
-	    double *optr = static_cast<Real *>(obuf.ptr);
-
-	    C_apec(eptr, ebuf.size - 1, pptr, 1, optr, NULL, "");
-	    return result;
-	  },
-	  "The XSPEC apec model.");
 }

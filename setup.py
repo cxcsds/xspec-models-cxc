@@ -9,6 +9,8 @@ from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from pybind11 import get_cmake_dir
 
+__version__ = "0.0.2"
+
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
 #
@@ -26,7 +28,6 @@ if not modelfile.is_file():
     sys.stderr.write('ERROR: unable to find HEADAS environment variable.\n')
     sys.exit(1)
 
-__version__ = "0.0.1"
 
 # It would be nice to query for this from the system,
 # such as with pkg_config.

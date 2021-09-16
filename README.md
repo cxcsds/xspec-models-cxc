@@ -49,6 +49,17 @@ automatically, but if not you can just say
 I am not putting this on [PyPI](https://pypi.org/) yet as there are a
 lot of things to work out first!
 
+## Notes
+
+I had to
+
+```
+% export LD_LIBRARY_PATH=$HEADAS/lib
+```
+
+in order to use the module. I believe it depends on how you built the
+XSPEC model library (I am using a full XSPEC installation).
+
 ## Example
 
 You will need to ensure that numpy is installed for the following
@@ -60,7 +71,7 @@ haven't hid the screen output as it is useful to see at this time):
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.1'
+'0.0.2'
 >>> x.init()
  Solar Abundance Vector set to angr:  Anders E. & Grevesse N. Geochimica et Cosmochimica Acta 53, 197 (1989)
  Cross Section Table set to vern:  Verner, Ferland, Korista, and Yakovlev 1996
