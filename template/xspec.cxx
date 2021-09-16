@@ -161,17 +161,8 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
 	  "Return the name of an element (atomic number).",
 	  py::return_value_policy::reference);
 
-    // Access the models
-    // - should be auto-generated
-    // - what interface do we use?
+    // Add the models, auto-generated from the model.dat file.
     //
-    // The apec entry in model.dat for heasoft-6.29 is
-    //
-    //   apec           3  0.         1.e20           C_apec    add  0
-    //   kT      keV     1.    0.008   0.008   64.0      64.0      .01
-    //   Abundanc " "    1.    0.      0.      5.        5.        -0.001
-    //   Redshift " "    0.   -0.999  -0.999   10.       10.       -0.01
-    //
-    m.def("apec", wrapper<C_apec, 3>, "The XSPEC apec model.");
+@@MODELS@@
 
 }

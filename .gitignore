@@ -2,3 +2,5 @@
 build/
 *.egg-info/
 xspec_models_cxc.*.so
+
+src/xspec.cxx
