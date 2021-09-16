@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.0.5
+
+Improve the module documentation. It's still not great but it is a
+move in the right direction.
+
 ## 0.0.4
 
 Start transitioning to `setup.cfg`. This seems to work...
