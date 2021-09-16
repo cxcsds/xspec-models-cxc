@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.0.8
+
+An internal change to better use XSPEC types and which simplifies the
+internals (no need to re-create the FORTRAN signatures).
+
 ## 0.0.7
 
 Support FORTRAN models (at least for additive and multiplicative

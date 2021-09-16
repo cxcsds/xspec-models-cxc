@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -101,9 +101,6 @@ def wrapmod(model):
 
 mstrs = [wrapmod(m) for m in models]
 
-f77strs = [f"void {n}_(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer);"
-           for n in f77models]
-
 
 def replace_term(txt, term, replace):
     """Replace term with replace in txt"""
@@ -118,7 +115,6 @@ def replace_term(txt, term, replace):
 
 with template.open(mode='rt') as ifh:
     out = ifh.read()
-    out = replace_term(out, '@@FORTRANDEFS@@', '\n'.join(f77strs))
     out = replace_term(out, '@@ADDMODELS@@', '\n'.join(addmodels))
     out = replace_term(out, '@@MULMODELS@@', '\n'.join(mulmodels))
     out = replace_term(out, '@@MODELS@@', '\n'.join(mstrs))
@@ -134,7 +130,7 @@ print(f"Number of models:  {len(mstrs)}")
 print(f"   additive:       {len(addmodels)}")
 print(f"   multiplicative: {len(mulmodels)}")
 print(f"   C++:            {len(cxxmodels)}")
-print(f"   FORTRAN:        {len(f77strs)}")
+print(f"   FORTRAN:        {len(f77models)}")
 print("###############################################")
 
 

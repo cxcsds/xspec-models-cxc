@@ -31,6 +31,7 @@
 // moved compared to XSPEC 12.11.1 and earlier.
 //
 #include <xsTypes.h>
+#include <XSFunctions/Utilities/funcType.h>  // xsccCall and the like
 
 #include <XSFunctions/Utilities/xsFortran.h>  // needed for FNINIT - anything else?
 #include <XSFunctions/Utilities/FunctionUtility.h>
@@ -39,12 +40,8 @@
 // Where do we get the model definitions? At the moment we manually add
 // the FORTRAN definition as I couldn't get functionMap to work.
 //
-// #include <XSFunctions/functionMap.h>
+#include <XSFunctions/functionMap.h>
 #include <XSFunctions/funcWrappers.h>
-
-extern "C" {
-@@FORTRANDEFS@@
-}
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -123,10 +120,7 @@ const void init() {
 // but is it safe to assume this? We avoid this error by wrapping the C_xxx
 // version.
 //
-template <void (*model)(const double* energy, int nFlux, const double* params,
-			int spectrumNumber, double* flux, double* fluxError,
-			const char* initStr),
-	  int NumPars>
+template <xsccCall model, int NumPars>
 py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
 
   py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
@@ -142,7 +136,12 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array:
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at leat 3 bin edges");
 
-  auto result = py::array_t<Real>(ebuf.size - 1);
+  const int nelem = ebuf.size - 1;
+  const int ifl = 1;
+
+  // Can we easily zero out the arrays?
+  auto result = py::array_t<Real>(nelem);
+  auto errors = std::vector<Real>(nelem);
 
   py::buffer_info obuf = result.request();
 
@@ -151,13 +150,12 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array:
   double *optr = static_cast<Real *>(obuf.ptr);
 
   init();
-  model(eptr, ebuf.size - 1, pptr, 1, optr, NULL, "");
+  model(eptr, nelem, pptr, ifl, optr, errors.data(), "");
   return result;
 }
 
 
-template <void (*model)(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer),
-	  int NumPars>
+template <xsf77Call model, int NumPars>
 py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::array::c_style | py::array::forcecast> energyArray) {
 
   py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
@@ -173,8 +171,10 @@ py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::arr
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at leat 3 bin edges");
 
-  int nelem = ebuf.size - 1;
+  const int nelem = ebuf.size - 1;
+  const int ifl = 1;
 
+  // Can we easily zero out the arrays?
   auto result = py::array_t<float>(nelem);
   auto errors = std::vector<float>(nelem);
 
@@ -184,10 +184,8 @@ py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::arr
   float *eptr = static_cast<float *>(ebuf.ptr);
   float *optr = static_cast<float *>(obuf.ptr);
 
-  int ifl = 1;
-
   init();
-  model(eptr, &nelem, pptr, &ifl, optr, errors.data());
+  model(eptr, nelem, pptr, ifl, optr, errors.data());
   return result;
 }
 
