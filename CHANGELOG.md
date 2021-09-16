@@ -1,5 +1,13 @@
 # Changes in xspec-models-cxc
 
+## 0.0.7
+
+Support FORTRAN models (at least for additive and multiplicative
+models). This bumps the number of models from 115 to 201.
+
+Note that a FORTRAN compiler is not required (although it will have
+been needed to build XSPEC).
+
 ## 0.0.6
 
 The initalization of the XSPEC model library is now done

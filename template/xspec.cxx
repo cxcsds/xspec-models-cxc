@@ -36,12 +36,15 @@
 #include <XSFunctions/Utilities/FunctionUtility.h>
 #include <XSUtil/Utils/XSutility.h>
 
-// C_<model> are declared here; the other models are defined in
-// functionMap.h but that requires using the XSPEC build location
-// rather than install location.
+// Where do we get the model definitions? At the moment we manually add
+// the FORTRAN definition as I couldn't get functionMap to work.
 //
+// #include <XSFunctions/functionMap.h>
 #include <XSFunctions/funcWrappers.h>
 
+extern "C" {
+@@FORTRANDEFS@@
+}
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -149,6 +152,42 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array:
 
   init();
   model(eptr, ebuf.size - 1, pptr, 1, optr, NULL, "");
+  return result;
+}
+
+
+template <void (*model)(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer),
+	  int NumPars>
+py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::array::c_style | py::array::forcecast> energyArray) {
+
+  py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1)
+    throw pybind11::value_error("pars and energyArray must be 1D");
+
+  if (pbuf.size != NumPars) {
+    std::ostringstream err;
+    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
+    throw std::runtime_error(err.str());
+  }
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at leat 3 bin edges");
+
+  int nelem = ebuf.size - 1;
+
+  auto result = py::array_t<float>(nelem);
+  auto errors = std::vector<float>(nelem);
+
+  py::buffer_info obuf = result.request();
+
+  float *pptr = static_cast<float *>(pbuf.ptr);
+  float *eptr = static_cast<float *>(ebuf.ptr);
+  float *optr = static_cast<float *>(obuf.ptr);
+
+  int ifl = 1;
+
+  init();
+  model(eptr, &nelem, pptr, &ifl, optr, errors.data());
   return result;
 }
 

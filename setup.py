@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -64,11 +64,10 @@ outfile = out_dir / filename
 # Ugly information flow here
 addmodels = []
 mulmodels = []
+f77models = []
+cxxmodels = []
 
 def wrapmod(model):
-
-    if model.language.startswith('Fortran'):
-        return f'    // Skipping Fortran {model.name} / {model.funcname}'
 
     if model.language == 'C style':
         return f'    // Skipping C {model.name} / {model.funcname}'
@@ -83,16 +82,28 @@ def wrapmod(model):
     else:
         assert False, model.modeltype
 
-    # For now we always wrap the C_ version
-    out = f'    m.def("{model.name}", wrapper_C<'
-    out += f'C_{model.funcname}, {npars}>, '
+    out = f'    m.def("{model.name}", wrapper'
+
+    if model.language == 'Fortran - single precision':
+        out += f'_f<{model.funcname}_'
+        f77models.append(model.funcname)
+    elif model.language == 'C++ style':
+        out += f'_C<C_{model.funcname}'
+        cxxmodels.append(model.funcname)
+    else:
+        assert False, (model.name, model.funcname, model.language)
+
+    out += f', {npars}>, '
     out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).",'
     out += '"pars"_a,"energies"_a'
     out += ');'
     return out
 
 mstrs = [wrapmod(m) for m in models]
-mstr = '\n'.join(mstrs)
+
+f77strs = [f"void {n}_(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer);"
+           for n in f77models]
+
 
 def replace_term(txt, term, replace):
     """Replace term with replace in txt"""
@@ -104,15 +115,28 @@ def replace_term(txt, term, replace):
 
     return txt[:idx] + replace + txt[idx + len(term):]
 
+
 with template.open(mode='rt') as ifh:
     out = ifh.read()
+    out = replace_term(out, '@@FORTRANDEFS@@', '\n'.join(f77strs))
     out = replace_term(out, '@@ADDMODELS@@', '\n'.join(addmodels))
     out = replace_term(out, '@@MULMODELS@@', '\n'.join(mulmodels))
-    out = replace_term(out, '@@MODELS@@', mstr)
+    out = replace_term(out, '@@MODELS@@', '\n'.join(mstrs))
 
 out_dir.mkdir(exist_ok=True)
 with outfile.open(mode='wt') as ofh:
     ofh.write(out)
+
+# Summarize
+#
+print("###############################################")
+print(f"Number of models:  {len(mstrs)}")
+print(f"   additive:       {len(addmodels)}")
+print(f"   multiplicative: {len(mulmodels)}")
+print(f"   C++:            {len(cxxmodels)}")
+print(f"   FORTRAN:        {len(f77strs)}")
+print("###############################################")
+
 
 # It would be nice to query for this from the system,
 # such as with pkg_config.

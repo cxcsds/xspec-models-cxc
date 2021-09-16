@@ -55,13 +55,13 @@ module provides access to
 
 | Type           | Total  | Supported |
 | -------------- | ------ | --------- |
-| additive       |    148 |        97 |
-| multiplicative |     61 |        18 |
+| additive       |    148 |       141 |
+| multiplicative |     61 |        60 |
 | convolution    |     22 |         0 |
 | acn            |      1 |         0 |
 | C++            |    135 |       115 |
 | C              |      8 |         0 |
-| FORTRAN        |     89 |         0 |
+| FORTRAN        |     89 |        86 |
 
 I had to
 
@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.6'
+'0.0.7'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -100,6 +100,8 @@ DESCRIPTION
     Additive models
     ---------------
     agauss
+    agnsed
+    agnslim
     apec
     bapec
 ...
@@ -109,11 +111,18 @@ DESCRIPTION
     ---------------
     absori
     acisabs
-    gabs
+    constant
+    cabs
 ...
-    zTBabs
+    zwabs
+    zwndabs
 
 FUNCTIONS
+    SSS_ice(...) method of builtins.PyCapsule instance
+        SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32]) -> numpy.ndarray[numpy.float32]
+
+        The XSPEC multiplicative SSS_ice model (1 parameters).
+
     TBabs(...) method of builtins.PyCapsule instance
         TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
 
@@ -121,6 +130,10 @@ FUNCTIONS
 
 ...
 ```
+
+Note that you can see the difference between a FORTRAN model such as
+`SSS_ice`, which deals with single-precision floats, and C/C++ models
+such as `TBabs`, which deal with double-precision floats.
 
 With this we can do a few things:
 
@@ -304,6 +317,45 @@ array([0.47038697, 0.21376409, 0.1247977 , 0.08182932])
 Note that the return values have units of photons/cm^2/s as this is an
 XSPEC [additive
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Additive.html).
+
+### agnslim
+
+The `agnslim` additive model is a FORTRAN model in 12.12.0:
+
+```
+agnslim         14 0.03       1.e20          agnslim  add  0
+mass    solar  1e7     1.0     1.0     1.e10    1.e10     -.1
+dist    Mpc    100    0.01    0.01    1.e9    1.e9     -.01
+logmdot " "   1.    -10.      -10.       3 3     0.01
+astar " " 0. 0. 0. 0.998 0.998 -1
+cosi " "  0.5     0.05    0.05      1.   1.  -1
+kTe_hot  keV(-pl)  100.0   10 10     300      300        -1
+kTe_warm     keV(-sc)  0.2   0.1    0.1    0.5      0.5        1e-2
+Gamma_hot    " "  2.4  1.3 1.3     3        3.       0.01
+Gamma_warm      "(-disk)"  3.0  2    2     5.        10.       0.01
+R_hot "Rg " 10.0 2.0 2.0 500 500 0.01
+R_warm "Rg"   20.0  2 2 500 500     0.1
+logrout "(-selfg) "   -1.0   -3.0    -3.0       7.0     7.0      -1e-2
+rin   ""     -1      -1 -1 100. 100. -1
+redshift   " "     0.0    0.      0.      5 5 -1
+```
+
+```
+>>> help(x.agnslim)
+Help on built-in function agnslim in module xspec_models_cxc:
+
+agnslim(...) method of builtins.PyCapsule instance
+    agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32]) -> numpy.ndarray[numpy.float32]
+
+    The XSPEC additive agnslim model (14 parameters).
+
+>>> pars = [1e7, 100, 1, 0, 0.5, 100, 0.2, 2.4, 3, 10, 20, -1, -1, 0]
+>>> egrid = np.arange(0.1, 11, 0.01)
+>>> y = x.agnslim(pars, egrid)
+>>> y
+array([5.6430912e-01, 4.2761257e-01, 3.3259588e-01, ..., 2.6246285e-06,
+       2.6130140e-06, 2.6132632e-06], dtype=float32)
+```
 
 ### TBABS
 
