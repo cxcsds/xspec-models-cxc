@@ -17,6 +17,9 @@
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
+#include <iostream>
+#include <fstream>
+
 #include <pybind11/pybind11.h>
 // #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
@@ -43,13 +46,67 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
+// Initialize the XSPEC interface. We only want to do this once, and
+// we want to be lazy - i.e. we don't want this done when the module
+// is loaded (this is mainly a requirement from Sherpa and could be
+// removed).
+//
+// Can we make this accessible to other users (e.g. for people who
+// want to bind to user models?).
+//
+const void init() {
+  static bool ran = false;
+  if (ran) { return; }
+
+  // A common problem case
+  if (!getenv("HEADAS"))
+    throw std::runtime_error("The HEADAS environment variable is not set!");
+
+  // FNINIT is a bit chatty, so hide the stdout buffer for this call.
+  // This is based on code from Sherpa.
+  //
+  std::streambuf* cout_sbuf = std::cout.rdbuf();
+  std::ofstream fout("/dev/null");
+  if (cout_sbuf != NULL && fout.is_open())
+    std::cout.rdbuf(fout.rdbuf()); // temporary redirect stdout to /dev/null
+
+  try {
+
+    // Can this fail?
+    FNINIT();
+
+  } catch(...) {
+
+    // Get back original std::cout
+    std::cout.clear();
+    std::cout.rdbuf(cout_sbuf);
+    fout.clear();
+    fout.close();
+
+    throw std::runtime_error("Unable to initialize XSPEC model library");
+  }
+
+  // Get back original std::cout
+  std::cout.clear();
+  std::cout.rdbuf(cout_sbuf);
+  fout.clear();
+  fout.close();
+
+  ran = true;
+}
+
+
+// The FORTRAN interface looks like
+//
+//   void agnsed_(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer);
+//
 // The C_xxx interface looks like
 //
 //   void C_apec(const double* energy, int nFlux, const double* params,
 //        int spectrumNumber, double* flux, double* fluxError,
 //        const char* initStr);
 //
-// and the CXX_xxx interface is
+// The CXX_xxx interface is
 //
 //   void CXX_apec(const RealArray& energyArray, const RealArray& params,
 //        int spectrumNumber, RealArray& fluxArray, RealArray& fluxErrArray,
@@ -67,11 +124,11 @@ template <void (*model)(const double* energy, int nFlux, const double* params,
 			int spectrumNumber, double* flux, double* fluxError,
 			const char* initStr),
 	  int NumPars>
-py::array_t<Real> wrapper(py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
+py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
 
   py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
   if (pbuf.ndim != 1 || ebuf.ndim != 1)
-    throw std::runtime_error("pars and energyArray must be 1D");
+    throw pybind11::value_error("pars and energyArray must be 1D");
 
   if (pbuf.size != NumPars) {
     std::ostringstream err;
@@ -80,7 +137,7 @@ py::array_t<Real> wrapper(py::array_t<Real> pars, py::array_t<Real, py::array::c
   }
 
   if (ebuf.size < 3)
-    throw std::runtime_error("Expected at leat 3 bin edges");
+    throw pybind11::value_error("Expected at leat 3 bin edges");
 
   auto result = py::array_t<Real>(ebuf.size - 1);
 
@@ -90,6 +147,7 @@ py::array_t<Real> wrapper(py::array_t<Real> pars, py::array_t<Real, py::array::c
   double *eptr = static_cast<Real *>(ebuf.ptr);
   double *optr = static_cast<Real *>(obuf.ptr);
 
+  init();
   model(eptr, ebuf.size - 1, pptr, 1, optr, NULL, "");
   return result;
 }
@@ -108,6 +166,9 @@ Call XSPEC models from Python
 
 Highly experimental.
 
+The XSPEC model library is automatically initialized on the first call
+to one of the functions or models.
+
 Additive models
 ---------------
 @@ADDMODELS@@
@@ -118,16 +179,13 @@ Multiplicative models
 
 )doc";
 
-    // Can we make this lazily initalized?
-    //
-    m.def("init", &FNINIT, "Initialize the XSPEC model library.");
-
     // Access to the library functionality. The string returned
     // by this routine is created on-the-fly and so I think it's
     // okay for pybind11 to take ownership if it.
     //
     //
-    m.def("get_version", &XSutility::xs_version,
+    m.def("get_version",
+	  []() { init(); return XSutility::xs_version(); },
 	  "The version of the XSPEC model library");
 
     // You could be fancy and have an XSPEC object where these
@@ -142,36 +200,36 @@ Multiplicative models
     //
 
     m.def("chatter",
-	  []() { return FunctionUtility::xwriteChatter(); },
+	  []() { init(); return FunctionUtility::xwriteChatter(); },
 	  "Get the XSPEC chatter level.");
 
     m.def("chatter",
-	  [](int i) { FunctionUtility::xwriteChatter(i); },
+	  [](int i) { init(); FunctionUtility::xwriteChatter(i); },
 	  "Set the XSPEC chatter level.",
 	  "chatter"_a);
 
     m.def("abundance",
-	  []() { return FunctionUtility::ABUND(); },
+	  []() { init(); return FunctionUtility::ABUND(); },
 	  "Get the abundance-table setting.",
 	  py::return_value_policy::reference);
 
     m.def("abundance",
-	  [](const string& value) { return FunctionUtility::ABUND(value); },
+	  [](const string& value) { init(); return FunctionUtility::ABUND(value); },
 	  "Set the abundance-table setting.",
 	  "table"_a);
 
     m.def("elementAbundance",
-	  [](const string& value) { return FunctionUtility::getAbundance(value); },
+	  [](const string& value) { init(); return FunctionUtility::getAbundance(value); },
 	  "Return the abundance setting for an element given the name.",
 	  "name"_a);
 
     m.def("elementAbundance",
-	  [](const size_t Z) { return FunctionUtility::getAbundance(Z); },
+	  [](const size_t Z) { init(); return FunctionUtility::getAbundance(Z); },
 	  "Return the abundance setting for an element given the atomic number.",
 	  "z"_a);
 
     m.def("elementName",
-	  [](const size_t Z) { return FunctionUtility::elements(Z - 1); },
+	  [](const size_t Z) { init(); return FunctionUtility::elements(Z - 1); },
 	  "Return the name of an element given the atomic number.",
 	  "z"_a,
 	  py::return_value_policy::reference);

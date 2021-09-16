@@ -20,9 +20,10 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-You need to have XSPEC 12.12.0 installed, have the `HEADAS` environment
-variable set up, and hope that your XSPEC build uses the same versions
-of the libraries as mine does (since there's currently no way to query XSPEC for these vaues programatically).
+You need to have XSPEC 12.12.0 installed, have the `HEADAS`
+environment variable set up, and hope that your XSPEC build uses the
+same versions of the libraries as mine does (since there's currently
+no way to query XSPEC for these vaues programatically).
 
 With this you can
 
@@ -60,13 +61,14 @@ XSPEC model library (I am using a full XSPEC installation).
 
 ## Example
 
-We need to manually initialize the library with the `init` function (I
-haven't hid the screen output as it is useful to see at this time):
+The XSPEC model library is automatically initalized when the first call
+is made, not when the module is loaded. The `init` function provided
+in version 0.0.5 and earlier is no-longer provided.
 
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.5'
+'0.0.6'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -78,6 +80,9 @@ DESCRIPTION
     =============================
 
     Highly experimental.
+
+    The XSPEC model library is automatically initialized on the first call
+    to one of the functions or models.
 
     Additive models
     ---------------
@@ -102,10 +107,6 @@ FUNCTIONS
         The XSPEC multiplicative TBabs model (1 parameters).
 
 ...
-
->>> x.init()
- Solar Abundance Vector set to angr:  Anders E. & Grevesse N. Geochimica et Cosmochimica Acta 53, 197 (1989)
- Cross Section Table set to vern:  Verner, Ferland, Korista, and Yakovlev 1996
 ```
 
 With this we can do a few things:
@@ -113,6 +114,14 @@ With this we can do a few things:
 - what version of XSPEC are we using?
 
 ```
+>>> help(x.get_version)
+Help on built-in function get_version in module xspec_models_cxc:
+
+get_version(...) method of builtins.PyCapsule instance
+    get_version() -> str
+
+    The version of the XSPEC model library
+
 >>> x.get_version()
 '12.12.0'
 ```
@@ -255,9 +264,6 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 
 ```
 >>> import xspec_models_cxc as x
->>> x.init()
- Solar Abundance Vector set to angr:  Anders E. & Grevesse N. Geochimica et Cosmochimica Acta 53, 197 (1989)
- Cross Section Table set to vern:  Verner, Ferland, Korista, and Yakovlev 1996
 >>> help(x.apec)
 Help on built-in function apec in module xspec_models_cxc:
 

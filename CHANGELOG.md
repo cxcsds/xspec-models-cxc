@@ -1,5 +1,16 @@
 # Changes in xspec-models-cxc
 
+## 0.0.6
+
+The initalization of the XSPEC model library is now done
+automatically, the first time any routine is called, rather than
+requiring an explicit call to a `init` function. The screen output the
+initialization creates - that is, displaying the default abundance and
+cross-section tables - has now been hidden.
+
+The error-handling has been improved to raise errors other than
+RuntimeError when appropriate.
+
 ## 0.0.5
 
 Improve the module documentation. It's still not great but it is a

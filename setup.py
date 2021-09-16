@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -84,7 +84,7 @@ def wrapmod(model):
         assert False, model.modeltype
 
     # For now we always wrap the C_ version
-    out = f'    m.def("{model.name}", wrapper<'
+    out = f'    m.def("{model.name}", wrapper_C<'
     out += f'C_{model.funcname}, {npars}>, '
     out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).",'
     out += '"pars"_a,"energies"_a'
