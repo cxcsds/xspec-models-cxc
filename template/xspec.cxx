@@ -121,7 +121,10 @@ const void init() {
 // version.
 //
 template <xsccCall model, int NumPars>
-py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray) {
+py::array_t<Real> wrapper_C(py::array_t<Real> pars,
+			    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
+			    const int spectrumNumber,
+			    const string initStr) {
 
   py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
   if (pbuf.ndim != 1 || ebuf.ndim != 1)
@@ -136,8 +139,10 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array:
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at leat 3 bin edges");
 
+  // Should we force spectrumNumber >= 1?
+  // We shouldn't be able to send in an invalid initStr so do not bother checking.
+
   const int nelem = ebuf.size - 1;
-  const int ifl = 1;
 
   // Can we easily zero out the arrays?
   auto result = py::array_t<Real>(nelem);
@@ -150,13 +155,15 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars, py::array_t<Real, py::array:
   double *optr = static_cast<Real *>(obuf.ptr);
 
   init();
-  model(eptr, nelem, pptr, ifl, optr, errors.data(), "");
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
   return result;
 }
 
 
 template <xsf77Call model, int NumPars>
-py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::array::c_style | py::array::forcecast> energyArray) {
+py::array_t<float> wrapper_f(py::array_t<float> pars,
+			     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+			     const int spectrumNumber) {
 
   py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
   if (pbuf.ndim != 1 || ebuf.ndim != 1)
@@ -172,7 +179,6 @@ py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::arr
     throw pybind11::value_error("Expected at leat 3 bin edges");
 
   const int nelem = ebuf.size - 1;
-  const int ifl = 1;
 
   // Can we easily zero out the arrays?
   auto result = py::array_t<float>(nelem);
@@ -185,7 +191,7 @@ py::array_t<float> wrapper_f(py::array_t<float> pars, py::array_t<float, py::arr
   float *optr = static_cast<float *>(obuf.ptr);
 
   init();
-  model(eptr, nelem, pptr, ifl, optr, errors.data());
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
   return result;
 }
 

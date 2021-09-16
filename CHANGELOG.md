@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.0.10
+
+Support the `spectrum` argument to all models and, for non-FORTRAN
+models, the `initStr` argument.
+
 ## 0.0.9
 
 Support C-style models. This bumps the number of supported models to

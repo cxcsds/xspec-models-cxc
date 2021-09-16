@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -96,7 +96,9 @@ def wrapmod(model):
 
     out += f', {npars}>, '
     out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).",'
-    out += '"pars"_a,"energies"_a'
+    out += '"pars"_a,"energies"_a,"spectrum"_a=1'
+    if not model.language.startswith('Fortran'):
+        out += ',"initStr"_a=""'
     out += ');'
     return out
 

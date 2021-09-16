@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.9'
+'0.0.10'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -120,12 +120,12 @@ DESCRIPTION
 
 FUNCTIONS
     SSS_ice(...) method of builtins.PyCapsule instance
-        SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32]) -> numpy.ndarray[numpy.float32]
+        SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
         The XSPEC multiplicative SSS_ice model (1 parameters).
 
     TBabs(...) method of builtins.PyCapsule instance
-        TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+        TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
         The XSPEC multiplicative TBabs model (1 parameters).
 
@@ -295,7 +295,8 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 Help on built-in function apec in module xspec_models_cxc:
 
 apec(...) method of builtins.PyCapsule instance
-    apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+    apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') ->
+numpy.ndarray[numpy.float64]
 
     The XSPEC additive apec model (3 parameters).
 
@@ -346,7 +347,7 @@ redshift   " "     0.0    0.      0.      5 5 -1
 Help on built-in function agnslim in module xspec_models_cxc:
 
 agnslim(...) method of builtins.PyCapsule instance
-    agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32]) -> numpy.ndarray[numpy.float32]
+    agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
     The XSPEC additive agnslim model (14 parameters).
 
@@ -383,7 +384,7 @@ FFnorm  " "     1          -1     -1       100       100        -1
 Help on built-in function bwcycl in module xspec_models_cxc:
 
 bwcycl(...) method of builtins.PyCapsule instance
-    bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+    bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
     The XSPEC additive bwcycl model (12 parameters).
 
@@ -415,7 +416,7 @@ decreases by a magnitude or two:
 Help on built-in function TBabs in module xspec_models_cxc:
 
 TBabs(...) method of builtins.PyCapsule instance
-    TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+    TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
     The XSPEC multiplicative TBabs model (1 parameters).
 
@@ -449,3 +450,60 @@ array([0.01782731, 0.24523089, 0.52427897, 0.70005576, 0.79993471,
 Note that the return values have no units as this is an XSPEC
 [multiplicative
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Multiplicative.html).
+
+### SMAUG
+
+The smaug model is an interesting one because we can't actually run
+it at the moment. The model is
+
+```
+smaug         22   0.0E+00    1.0E+20        c_xsmaug    add 0  1
+kT.cc    keV       1.0E+00    8.0E-02 1.0E-01  1.0E+01  1.0E+02   1.0E-02
+kT.dt    keV       1.0E+00    0.0E+00 0.0E+00  1.0E+01  1.0E+02   1.0E-02
+kT.ix    " "       0.0E+00    0.0E+00 0.0E+00  1.0E+01  1.0E+01  -1.0E-03
+kT.ir    Mpc       1.0E-01    1.0E-04 1.0E-04  1.0E+00  1.0E+00  -1.0E-03
+kT.cx    " "       5.0E-01    0.0E+00 0.0E+00  1.0E+01  1.0E+01   1.0E-03
+kT.cr    Mpc       1.0E-01    1.0E-04 1.0E-04  1.0E+01  2.0E+01   1.0E-02
+kT.tx    " "       0.0E+00    0.0E+00 0.0E+00  1.0E+01  1.0E+01  -1.0E-03
+kT.tr    Mpc       5.0E-01    1.0E-04 1.0E-04  1.0E+00  3.0E+00  -1.0E-02
+nH.cc    cm**-3    1.0E+00    1.0E-06 1.0E-06  3.0E+00  3.0E+00  -1.0E-02
+nH.ff    " "       1.0E-00    0.0E+00 0.0E+00  1.0E+00  1.0E+00  -1.0E-02
+nH.cx    " "       5.0E-01    0.0E+00 0.0E+00  1.0E+01  1.0E+01   1.0E-03
+nH.cr    Mpc       1.0E-01    1.0E-04 1.0E-04  1.0E+00  2.0E+00   1.0E-02
+nH.gx    " "       0.0E+00    0.0E+00 0.0E+00  1.0E+01  1.0E+01  -1.0E-03
+nH.gr    Mpc       2.0E-03    1.0E-04 1.0E-04  1.0E+01  2.0E+01  -1.0E-03
+Ab.cc    solar     1.0E+00    0.0E+00 0.0E+00  3.0E+00  5.0E+00  -1.0E-02
+Ab.xx    " "       0.0E+00    0.0E+00 0.0E+00  1.0E+01  1.0E+01  -1.0E-03
+Ab.rr    Mpc       1.0E-01    1.0E-04 1.0E-04  1.0E+00  1.0E+00  -1.0E-02
+redshift " "       1.0E-02    1.0E-04 1.0E-04  1.0E+01  1.0E+01  -1.0E+00
+meshpts  " "       1.0E+01    1.0E+00 1.0E+00  1.0E+04  1.0E+04  -1.0E+00
+rcutoff  Mpc       2.0E+00    1.0E+00 1.0E+00  3.0E+00  3.0E+00  -1.0E-02
+mode     " "       1.0E+00    0.0E+00 0.0E+00  2.0E+00  2.0E+00  -1.0E+00
+itype    " "       2.0E+00    1.0E+00 1.0E+00  4.0E+00  4.0E+00  -1.0E+00
+```
+
+and when you try to run it the model fails
+
+```
+>>> pars = [1, 1, 0, 0.1, 0.5, 0.1, 0, 0.5, 1, 0.1, 0.5, 0.1, 0, 2e-3, 1, 0, 0.1, 0.01, 10, 2, 1, 2]
+>>> x.smaug(pars, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+
+***XSPEC Error:  in function XSmaug: cannot find XFLTnnnn keyword for inner annulus for spectrum 1
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: Caught an unknown exception!
+```
+
+We can change the spectrum number, but we currently do not support
+functionality to set the XFLT keywords.
+
+```
+>>> x.smaug(pars, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], spectrum=2)
+
+***XSPEC Error:  in function XSmaug: cannot find XFLTnnnn keyword for inner annulus for spectrum 2
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: Caught an unknown exception!
+```
