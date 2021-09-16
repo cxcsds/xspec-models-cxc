@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -107,7 +107,7 @@ xspec_libs = ['XSFunctions', 'XSUtil', 'XS', 'hdsp_6.29',
 ext_modules = [
     Pybind11Extension("xspec_models_cxc",
                       [str(outfile)],
-                      depends=[str(template)],
+                      depends=[str(modelfile), str(template)],  # is this useful?
                       cxx_std=11,
                       include_dirs=[str(HEADAS / 'include')],
                       library_dirs=[str(HEADAS / 'lib')],
@@ -116,32 +116,9 @@ ext_modules = [
                       ),
 ]
 
-# How do we include the model.dat file?
-
 setup(
-    name="xspec_models_cxc",
     version=__version__,
-    license="GNU GPL v3",
-    author="Douglas Burke",
-    author_email="dburke@cfa.harvard.edu",
-    url="https://github.com/cxcsds/xspec-models-cxc",
-    description="Access the XSPEC models from Python **experimental**",
-    long_description=open('README.md', 'rt').read(),
-    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
     extras_require={"test": "pytest"},
     cmdclass={"build_ext": build_ext},
-    zip_safe=False,
-    platforms='Linux, Mac OS X',
-    python_requires='~=3.7',
-    classifiers=[
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Programming Language :: C',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Topic :: Scientific/Engineering :: Astronomy',
-        'Topic :: Scientific/Engineering :: Physics'
-    ],
 )

@@ -1,5 +1,12 @@
 # Changes in xspec-models-cxc
 
+## 0.0.4
+
+Start transitioning to `setup.cfg`. This seems to work...
+
+There should be no functional changes in this release, other than that
+NumPy shuold now be installed if not already available.
+
 ## 0.0.3
 
 The first steps in auto-generating code: all the C++-style additive
