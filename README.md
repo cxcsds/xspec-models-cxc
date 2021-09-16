@@ -50,6 +50,19 @@ lot of things to work out first!
 
 ## Notes
 
+There are 232 models in the heasoft-6.29 model.dat file, and this
+module provides access to
+
+| Type           | Total  | Supported |
+| -------------- | ------ | --------- |
+| additive       |    148 |        97 |
+| multiplicative |     61 |        18 |
+| convolution    |     22 |         0 |
+| acn            |      1 |         0 |
+| C++            |    135 |       115 |
+| C              |      8 |         0 |
+| FORTRAN        |     89 |         0 |
+
 I had to
 
 ```
