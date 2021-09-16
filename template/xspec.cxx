@@ -21,7 +21,7 @@
 #include <fstream>
 
 #include <pybind11/pybind11.h>
-// #include <pybind11/stl.h>
+#include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
 #define STRINGIFY(x) #x
@@ -65,10 +65,9 @@ const void init() {
   // FNINIT is a bit chatty, so hide the stdout buffer for this call.
   // This is based on code from Sherpa.
   //
-  std::streambuf* cout_sbuf = std::cout.rdbuf();
-  std::ofstream fout("/dev/null");
-  if (cout_sbuf != NULL && fout.is_open())
-    std::cout.rdbuf(fout.rdbuf()); // temporary redirect stdout to /dev/null
+  std::ostringstream local;
+  auto cout_buff = std::cout.rdbuf();
+  std::cout.rdbuf(local.rdbuf());
 
   try {
 
@@ -77,20 +76,12 @@ const void init() {
 
   } catch(...) {
 
-    // Get back original std::cout
-    std::cout.clear();
-    std::cout.rdbuf(cout_sbuf);
-    fout.clear();
-    fout.close();
-
-    throw std::runtime_error("Unable to initialize XSPEC model library");
+    std::cout.rdbuf(cout_buff);
+    throw std::runtime_error("Unable to initialize XSPEC model library\n" + local.str());
   }
 
   // Get back original std::cout
-  std::cout.clear();
-  std::cout.rdbuf(cout_sbuf);
-  fout.clear();
-  fout.close();
+  std::cout.rdbuf(cout_buff);
 
   ran = true;
 }
@@ -137,7 +128,7 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars,
   }
 
   if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at leat 3 bin edges");
+    throw pybind11::value_error("Expected at least 3 bin edges");
 
   // Should we force spectrumNumber >= 1?
   // We shouldn't be able to send in an invalid initStr so do not bother checking.
@@ -176,7 +167,7 @@ py::array_t<float> wrapper_f(py::array_t<float> pars,
   }
 
   if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at leat 3 bin edges");
+    throw pybind11::value_error("Expected at least 3 bin edges");
 
   const int nelem = ebuf.size - 1;
 
@@ -251,6 +242,8 @@ Multiplicative models
 	  "Set the XSPEC chatter level.",
 	  "chatter"_a);
 
+    // Abundances
+    //
     m.def("abundance",
 	  []() { init(); return FunctionUtility::ABUND(); },
 	  "Get the abundance-table setting.",
@@ -261,13 +254,40 @@ Multiplicative models
 	  "Set the abundance-table setting.",
 	  "table"_a);
 
+    // We check to see if an error was written to stderr to identify when the
+    // input was invalid. This is not great!
+    //
     m.def("elementAbundance",
-	  [](const string& value) { init(); return FunctionUtility::getAbundance(value); },
+	  [](const string& value) {
+	    init();
+
+	    std::ostringstream local;
+	    auto cerr_buff = std::cerr.rdbuf();
+	    std::cerr.rdbuf(local.rdbuf());
+
+	    // Assume this can not throw an error
+	    auto answer = FunctionUtility::getAbundance(value);
+
+	    std::cerr.rdbuf(cerr_buff);
+	    if (local.str() != "")
+	      throw pybind11::key_error(value);
+
+	    return answer;
+	  },
 	  "Return the abundance setting for an element given the name.",
 	  "name"_a);
 
     m.def("elementAbundance",
-	  [](const size_t Z) { init(); return FunctionUtility::getAbundance(Z); },
+	  [](const size_t Z) {
+	    init();
+	    if (Z < 1 || Z > FunctionUtility::NELEMS()) {
+	      std::ostringstream emsg;
+	      emsg << Z;
+	      throw pybind11::index_error(emsg.str());
+	    }
+
+	    return FunctionUtility::getAbundance(Z);
+	  },
 	  "Return the abundance setting for an element given the atomic number.",
 	  "z"_a);
 
@@ -276,6 +296,159 @@ Multiplicative models
 	  "Return the name of an element given the atomic number.",
 	  "z"_a,
 	  py::return_value_policy::reference);
+
+    // Assume this is not going to change within a session!
+    // Also we assume that this can be called without callnig FNINIT.
+    //
+    m.attr("numberElements") = FunctionUtility::NELEMS();
+
+    // Cross sections
+    //
+    m.def("cross_section",
+	  []() { init(); return FunctionUtility::XSECT(); },
+	  "Get the cross-section-table setting.",
+	  py::return_value_policy::reference);
+
+    m.def("cross_section",
+	  [](const string& value) { init(); return FunctionUtility::XSECT(value); },
+	  "Set the cross-section-table setting.",
+	  "table"_a);
+
+    // Cosmology settings: I can not be bothered exposing the per-setting values.
+    //
+    m.def("cosmology",
+	  []() {
+	    init();
+	    std::map<std::string, float> answer;
+	    answer["H0"] = FunctionUtility::getH0();
+	    answer["q0"] = FunctionUtility::getq0();
+	    answer["lambda0"] = FunctionUtility::getlambda0();
+	    return answer;
+	  },
+	  "What is the current cosmology (H0, q0, lambda0).");
+
+    m.def("cosmology",
+	  [](float h0, float q0, float lambda0) {
+	    init();
+	    FunctionUtility::setH0(h0);
+	    FunctionUtility::setq0(q0);
+	    FunctionUtility::setlambda0(lambda0);
+	  },
+	  "Set the current cosmology.",
+	  "h0"_a, "q0"_a, "lambda0"_a);
+
+    // XFLT keyword handling: the names are hardly instructive. We could
+    // just have an overloaded XFLT method which either queries or sets
+    // the values, and then leave the rest to the user to do in Python.
+    //
+    m.def("clearXFLT",
+	  []() { init(); return FunctionUtility::clearXFLT(); },
+	  "Clear the XFLT database for all spectra.");
+
+    m.def("getNumberXFLT",
+	  [](int ifl) { init(); return FunctionUtility::getNumberXFLT(ifl); },
+	  "How many XFLT keywords are defined for the spectrum?",
+	  "spectrum"_a=1);
+
+    m.def("getXFLT",
+	  [](int ifl) { init(); return FunctionUtility::getAllXFLT(ifl); },
+	  "What are all the XFLT keywords for the spectrum?",
+	  "spectrum"_a=1,
+	  py::return_value_policy::reference);
+
+    m.def("getXFLT",
+	  [](int ifl, int i) { init(); return FunctionUtility::getXFLT(ifl, i); },
+	  "Return the given XFLT key.",
+	  "spectrum"_a, "key"_a);
+
+    m.def("getXFLT",
+	  [](int ifl, string skey) { init(); return FunctionUtility::getXFLT(ifl, skey); },
+	  "Return the given XFLT name.",
+	  "spectrum"_a, "name"_a);
+
+    m.def("inXFLT",
+	  [](int ifl, int i) { init(); return FunctionUtility::inXFLT(ifl, i); },
+	  "Is the given XFLT key set?",
+	  "spectrum"_a, "key"_a);
+
+    m.def("inXFLT",
+	  [](int ifl, string skey) { init(); return FunctionUtility::inXFLT(ifl, skey); },
+	  "Is the given XFLT name set?.",
+	  "spectrum"_a, "name"_a);
+
+    m.def("setXFLT",
+	  [](int ifl, const std::map<string, Real>& values) { init(); FunctionUtility::loadXFLT(ifl, values); },
+	  "Set the XFLT keywords for a spectrum",
+	  "spectrum"_a, "values"_a);
+
+    // Model database - as with XFLT how much do we just leave to Python?
+    //
+    // What are the memory requirements?
+    //
+    m.def("clearModelString",
+	  []() { init(); return FunctionUtility::eraseModelStringDataBase(); },
+	  "Clear the model string database.");
+
+    m.def("getModelString",
+	  []() { init(); return FunctionUtility::modelStringDataBase(); },
+	  "Get the model string database.",
+	  py::return_value_policy::reference);
+
+    m.def("getModelString",
+	  [](const string& key) {
+	    init();
+	    auto answer = FunctionUtility::getModelString(key);
+	    if (answer == FunctionUtility::NOT_A_KEY())
+	      throw pybind11::key_error(key);
+	    return answer;
+	  },
+	  "Get the key from the model string database.",
+	  "key"_a);
+
+    m.def("setModelString",
+	  [](const string& key, const string& value) { init(); FunctionUtility::setModelString(key, value); },
+	  "Get the key from the model string database.",
+	  "key"_a, "value"_a);
+
+    // "keyword" database values - similar to XFLT we could leave most of this to
+    // Python.
+    //
+    m.def("clearDb",
+	  []() { init(); return FunctionUtility::clearDb(); },
+	  "Clear the keyword database.");
+
+    m.def("getDb",
+	  []() { init(); return FunctionUtility::getAllDbValues(); },
+	  "Get the keyword database.",
+	  py::return_value_policy::reference);
+
+    // If the keyword is not an element then we get a string message and a set
+    // return value. Catching this is annoying.
+    //
+    m.def("getDb",
+	  [](const string keyword) {
+	    init();
+
+	    std::ostringstream local;
+	    auto cerr_buff = std::cerr.rdbuf();
+	    std::cerr.rdbuf(local.rdbuf());
+
+	    // Assume this can not throw an error
+	    auto answer = FunctionUtility::getDbValue(keyword);
+
+	    std::cerr.rdbuf(cerr_buff);
+	    if (answer == BADVAL)
+	      throw pybind11::key_error(keyword);
+
+	    return answer;
+	  },
+	  "Get the keyword value from the database.",
+	  "keyword"_a);
+
+    m.def("setDb",
+	  [](const string keyword, const double value) { init(); FunctionUtility::loadDbValue(keyword, value); },
+	  "Set the keyword in the database to the given value.",
+	  "keyword"_a, "value"_a);
 
     // Add the models, auto-generated from the model.dat file.
     //

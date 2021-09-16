@@ -1,5 +1,31 @@
 # Changes in xspec-models-cxc
 
+## 0.0.11
+
+Improve support for getting and setting features used by the
+XSPEC model library, including
+
+- cross-section table (`cross_section`)
+- number of elements in the abundance table (`numberElements`)
+- the Cosmology settings (`cosmology`); note that there we can only
+  get or set all three values at once (H0, q0, lambda0) even though we
+  could add support to change them individually
+- support for a number of "databases":
+  - XFLT
+  - model string
+  - keyword
+  These have subtly-different APIs and I wonder if it would be
+  better to just use a dictionary. The naming is also unclear.
+
+There have also been some changes to provide better - or at least
+somewhat-more-appropriate for Python - errors.
+
+Of note is that the current setup leaves the cosmology settings
+initially at (0.0, 0.0, 0.0). This is less-than ideal.
+
+Technically we should now be able to use the SMAUG model, but I have
+not tested it, other than showing it picks up the XFLT values.
+
 ## 0.0.10
 
 Support the `spectrum` argument to all models and, for non-FORTRAN

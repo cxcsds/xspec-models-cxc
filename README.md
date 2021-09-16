@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.10'
+'0.0.11'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -130,6 +130,21 @@ FUNCTIONS
         The XSPEC multiplicative TBabs model (1 parameters).
 
 ...
+
+    zxipcf(...) method of builtins.PyCapsule instance
+        zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+        The XSPEC multiplicative zxipcf model (4 parameters).
+
+DATA
+    numberElements = 30
+
+VERSION
+    0.0.11
+
+FILE
+    /some/long/path/to//xspec-models-cxc/xspec_models_cxc.blah.blah
+
 ```
 
 Note that you can see the difference between a FORTRAN model such as
@@ -249,23 +264,29 @@ elementAbundance(...) method of builtins.PyCapsule instance
 3.160000119351025e-07
 ```
 
-Note that there's limited checking which could be improved:
+Note that there's limited checking:
 
 ```
->>> x.elementAbundance('Po')
-XSPEC::getAbundance: Invalid element: Po entered, returning 0.
-0.0
+>>> >>> x.elementAbundance('Po')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+KeyError: 'Po'
+>>> x.elementAbundance(256)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+IndexError: 256
+>>> x.elementAbundance(0)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+IndexError: 0
 >>> x.elementAbundance(-4)
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
 TypeError: elementAbundance(): incompatible function arguments. The following argument types are supported:
-    1. (arg0: str) -> float
-    2. (arg0: int) -> float
+    1. (name: str) -> float
+    2. (z: int) -> float
 
 Invoked with: -4
->>> x.elementAbundance(256)
-XSPEC::getAbundance: Invalid element atomic number: 256 entered, returning 0.
-0.0
 ```
 
 - can I evaluate a model?
@@ -495,15 +516,23 @@ Traceback (most recent call last):
 RuntimeError: Caught an unknown exception!
 ```
 
-We can change the spectrum number, but we currently do not support
-functionality to set the XFLT keywords.
+We make probably make the error slightly nicer.
+
+We can now set the XFLT keywords, but I'm making things up here so it's not
+surprising it stil fails:
 
 ```
->>> x.smaug(pars, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], spectrum=2)
+>>> x.setXFLT(1, {'inner': 0, 'outer': 20, 'width': 0})
+>>> x.setXFLT(2, {'inner': 20, 'outer': 40, 'width': 0})
+>>> egrid = np.arange(0.1, 7, 0.01)
+>>> y1 = x.smaug(pars, egrid, spectrum=2)
 
-***XSPEC Error:  in function XSmaug: cannot find XFLTnnnn keyword for inner annulus for spectrum 2
+***XSPEC Error:  in function XSmaug: for of dataset 2 either the outer ring exceeds the cutoff radius, the outer ring is less
+than or equal to the inner, or the sector width is zero
 
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
 RuntimeError: Caught an unknown exception!
 ```
+
+(it also fails for `spectrum=1`!)
