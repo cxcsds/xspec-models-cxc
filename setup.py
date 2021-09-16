@@ -21,7 +21,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -53,11 +53,17 @@ if len(models) == 0:
 
 # Create the code we want to compile
 #
+# When does it become worth using Jinja2 or equivalent?
+#
 template_dir = pathlib.Path('template')
 out_dir = pathlib.Path('src')
 filename = pathlib.Path('xspec.cxx')
 template = template_dir / filename
 outfile = out_dir / filename
+
+# Ugly information flow here
+addmodels = []
+mulmodels = []
 
 def wrapmod(model):
 
@@ -70,29 +76,39 @@ def wrapmod(model):
     npars = len(model.pars)
     if model.modeltype == 'Add':
         mtype = 'additive'
+        addmodels.append(model.name)
     elif model.modeltype == 'Mul':
         mtype = 'multiplicative'
+        mulmodels.append(model.name)
     else:
         assert False, model.modeltype
 
     # For now we always wrap the C_ version
     out = f'    m.def("{model.name}", wrapper<'
     out += f'C_{model.funcname}, {npars}>, '
-    out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).");'
+    out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).",'
+    out += '"pars"_a,"energies"_a'
+    out += ');'
     return out
 
 mstrs = [wrapmod(m) for m in models]
 mstr = '\n'.join(mstrs)
 
-with template.open(mode='rt') as ifh:
-    cts = ifh.read()
-    sterm = '@@MODELS@@'
-    idx = cts.find(sterm)
+def replace_term(txt, term, replace):
+    """Replace term with replace in txt"""
+
+    idx = txt.find(term)
     if idx < 0:
         sys.stderr.write(f'ERROR: invalid template {template}\n')
         sys.exit(1)
 
-    out = cts[:idx] + mstr + cts[idx + len(sterm):]
+    return txt[:idx] + replace + txt[idx + len(term):]
+
+with template.open(mode='rt') as ifh:
+    out = ifh.read()
+    out = replace_term(out, '@@ADDMODELS@@', '\n'.join(addmodels))
+    out = replace_term(out, '@@MULMODELS@@', '\n'.join(mulmodels))
+    out = replace_term(out, '@@MODELS@@', mstr)
 
 out_dir.mkdir(exist_ok=True)
 with outfile.open(mode='wt') as ofh:

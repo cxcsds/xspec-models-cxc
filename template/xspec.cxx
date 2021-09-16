@@ -41,6 +41,7 @@
 
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 
 // The C_xxx interface looks like
 //
@@ -101,12 +102,21 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
     m.attr("__version__") = "dev";
 #endif
 
-    m.doc() = R"pbdoc(
-        Call XSPEC models from Python
-        -----------------------------
+    m.doc() = R"doc(
+Call XSPEC models from Python
+=============================
 
-        Highly experimental.
-    )pbdoc";
+Highly experimental.
+
+Additive models
+---------------
+@@ADDMODELS@@
+
+Multiplicative models
+---------------
+@@MULMODELS@@
+
+)doc";
 
     // Can we make this lazily initalized?
     //
@@ -137,7 +147,8 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
 
     m.def("chatter",
 	  [](int i) { FunctionUtility::xwriteChatter(i); },
-	  "Set the XSPEC chatter level.");
+	  "Set the XSPEC chatter level.",
+	  "chatter"_a);
 
     m.def("abundance",
 	  []() { return FunctionUtility::ABUND(); },
@@ -146,19 +157,23 @@ PYBIND11_MODULE(xspec_models_cxc, m) {
 
     m.def("abundance",
 	  [](const string& value) { return FunctionUtility::ABUND(value); },
-	  "Set the abundance-table setting.");
+	  "Set the abundance-table setting.",
+	  "table"_a);
 
     m.def("elementAbundance",
 	  [](const string& value) { return FunctionUtility::getAbundance(value); },
-	  "Return the abundance setting for an element (name).");
+	  "Return the abundance setting for an element given the name.",
+	  "name"_a);
 
     m.def("elementAbundance",
 	  [](const size_t Z) { return FunctionUtility::getAbundance(Z); },
-	  "Return the abundance setting for an element (atomic number).");
+	  "Return the abundance setting for an element given the atomic number.",
+	  "z"_a);
 
     m.def("elementName",
 	  [](const size_t Z) { return FunctionUtility::elements(Z - 1); },
-	  "Return the name of an element (atomic number).",
+	  "Return the name of an element given the atomic number.",
+	  "z"_a,
 	  py::return_value_policy::reference);
 
     // Add the models, auto-generated from the model.dat file.

@@ -66,7 +66,43 @@ haven't hid the screen output as it is useful to see at this time):
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.4'
+'0.0.5'
+>>> help(x)
+Help on module xspec_models_cxc:
+
+NAME
+    xspec_models_cxc
+
+DESCRIPTION
+    Call XSPEC models from Python
+    =============================
+
+    Highly experimental.
+
+    Additive models
+    ---------------
+    agauss
+    apec
+    bapec
+...
+    zpowerlw
+
+    Multiplicative models
+    ---------------
+    absori
+    acisabs
+    gabs
+...
+    zTBabs
+
+FUNCTIONS
+    TBabs(...) method of builtins.PyCapsule instance
+        TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+
+        The XSPEC multiplicative TBabs model (1 parameters).
+
+...
+
 >>> x.init()
  Solar Abundance Vector set to angr:  Anders E. & Grevesse N. Geochimica et Cosmochimica Acta 53, 197 (1989)
  Cross Section Table set to vern:  Verner, Ferland, Korista, and Yakovlev 1996
@@ -84,6 +120,21 @@ With this we can do a few things:
 - playing with the chatter setting
 
 ```
+>>> help(x.chatter)
+Help on built-in function chatter in module xspec_models_cxc:
+
+chatter(...) method of builtins.PyCapsule instance
+    chatter(*args, **kwargs)
+    Overloaded function.
+
+    1. chatter() -> int
+
+    Get the XSPEC chatter level.
+
+    2. chatter(chatter: int) -> None
+
+    Set the XSPEC chatter level.
+
 >>> x.chatter()
 10
 >>> x.chatter(0)
@@ -95,6 +146,21 @@ With this we can do a few things:
 - how about abundances tables?
 
 ```
+>>> help(x.abundance)
+Help on built-in function abundance in module xspec_models_cxc:
+
+abundance(...) method of builtins.PyCapsule instance
+    abundance(*args, **kwargs)
+    Overloaded function.
+
+    1. abundance() -> str
+
+    Get the abundance-table setting.
+
+    2. abundance(table: str) -> None
+
+    Set the abundance-table setting.
+
 >>> x.abundance()
 'angr'
 >>> x.abundance('lpgp')
@@ -111,6 +177,14 @@ abundance name.
 - what has atomic number 17?
 
 ```
+>>> help(x.elementName)
+Help on built-in function elementName in module xspec_models_cxc:
+
+elementName(...) method of builtins.PyCapsule instance
+    elementName(z: int) -> str
+
+    Return the name of an element given the atomic number.
+
 >>> x.elementName(17)
 'Cl'
 ```
@@ -118,6 +192,21 @@ abundance name.
 - what is the abundance of an element?
 
 ```
+>>> help(x.elementAbundance)
+Help on built-in function elementAbundance in module xspec_models_cxc:
+
+elementAbundance(...) method of builtins.PyCapsule instance
+    elementAbundance(*args, **kwargs)
+    Overloaded function.
+
+    1. elementAbundance(name: str) -> float
+
+    Return the abundance setting for an element given the name.
+
+    2. elementAbundance(z: int) -> float
+
+    Return the abundance setting for an element given the atomic number.
+
 >>> x.elementAbundance('Cl')
 3.160000119351025e-07
 >>> x.elementAbundance(17)
@@ -173,7 +262,7 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 Help on built-in function apec in module xspec_models_cxc:
 
 apec(...) method of builtins.PyCapsule instance
-    apec(arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+    apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
 
     The XSPEC additive apec model (3 parameters).
 
@@ -219,7 +308,7 @@ decreases by a magnitude or two:
 Help on built-in function TBabs in module xspec_models_cxc:
 
 TBabs(...) method of builtins.PyCapsule instance
-    TBabs(arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
+    TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64]) -> numpy.ndarray[numpy.float64]
 
     The XSPEC multiplicative TBabs model (1 parameters).
 
