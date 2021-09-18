@@ -1,0 +1,9 @@
+# What needs to get included here?
+
+recursive-include helpers *.py
+
+include template/xspec.cxx
+
+include CHANGELOG.md
+include LICENSE
+include README.md

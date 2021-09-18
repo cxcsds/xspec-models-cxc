@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.12'
+'0.0.13'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -140,7 +140,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.11
+    0.0.13
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.blah.blah
@@ -472,10 +472,44 @@ Note that the return values have no units as this is an XSPEC
 [multiplicative
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Multiplicative.html).
 
+### MKCFLOW
+
+The `mkcflow` additive model has a default of 0 for its redshift, but then
+warns you about it!
+
+```
+mkcflow        5  0.         1.e20           C_xsmkcf    add  0
+lowT    keV     0.1   0.0808  0.0808 79.9      79.9       0.001
+highT   keV     4.    0.0808  0.0808 79.9      79.9       0.001
+Abundanc " "    1.    0.      0.      5.        5.        0.01
+Redshift " "    0.   -0.999  -0.999   10.       10.       -0.01
+$switch    1     0       0     1      1       -1
+```
+
+```
+>>> x.mkcflow([0.1, 4, 1, 0, 1], np.arange(0.1, 0.8, 0.1))
+
+ XSVMCF: Require z > 0 for cooling flow models
+array([0., 0., 0., 0., 0., 0.])
+>>> x.mkcflow([0.1, 4, 1, 0, 1], np.arange(0.1, 0.8, 0.1))
+
+ XSVMCF: Require z > 0 for cooling flow models
+array([0., 0., 0., 0., 0., 0.])
+```
+
+unless you set the chatter to 0:
+
+```
+>>> x.chatter(0)
+>>> x.mkcflow([0.1, 4, 1, 0, 1], np.arange(0.1, 0.8, 0.1))
+array([0., 0., 0., 0., 0., 0.])
+>>>
+```
+
 ### SMAUG
 
-The smaug model is an interesting one because we can't actually run
-it at the moment. The model is
+The smaug model is an interesting one you have to set the XFLT keywords
+before using it. The model is
 
 ```
 smaug         22   0.0E+00    1.0E+20        c_xsmaug    add 0  1
@@ -518,8 +552,8 @@ RuntimeError: Caught an unknown exception!
 
 We make probably make the error slightly nicer.
 
-We can now set the XFLT keywords, but I'm making things up here so it's not
-surprising it stil fails:
+We can now set the XFLT keywords, but I'm making things up here so
+it's not surprising it still fails:
 
 ```
 >>> x.setXFLT(1, {'inner': 0, 'outer': 20, 'width': 0})
@@ -535,4 +569,5 @@ Traceback (most recent call last):
 RuntimeError: Caught an unknown exception!
 ```
 
-(it also fails for `spectrum=1`!)
+(it also fails for `spectrum=1` in this case but I wanted to show that
+the error message respected the spectrum value!)

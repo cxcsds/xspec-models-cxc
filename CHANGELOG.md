@@ -1,5 +1,11 @@
 # Changes in xspec-models-cxc
 
+## 0.0.13
+
+Separated out the template code from `setup.py` to a separate module
+(`helpers.template`) to make it look like I have some idea of coding
+standards.
+
 ## 0.0.12
 
 Added SPDX-Licencse-Identifier tags. Am I doing it right?
