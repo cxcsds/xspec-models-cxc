@@ -8,6 +8,8 @@ build is very fragile.
 
 """
 
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import os
 import pathlib
 import sys
@@ -21,7 +23,7 @@ from pybind11 import get_cmake_dir
 
 from parse_xspec.models import parse_xspec_model_description
 
-__version__ = "0.0.11"
+__version__ = "0.0.12"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?

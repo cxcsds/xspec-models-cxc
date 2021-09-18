@@ -1,5 +1,9 @@
 # Changes in xspec-models-cxc
 
+## 0.0.12
+
+Added SPDX-Licencse-Identifier tags. Am I doing it right?
+
 ## 0.0.11
 
 Improve support for getting and setting features used by the

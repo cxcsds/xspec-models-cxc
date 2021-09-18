@@ -81,7 +81,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.11'
+'0.0.12'
 >>> help(x)
 Help on module xspec_models_cxc:
 
