@@ -50,7 +50,7 @@ const void init() {
     throw std::runtime_error("The HEADAS environment variable is not set!");
 
   // FNINIT is a bit chatty, so hide the stdout buffer for this call.
-  // This is based on code from Sherpa.
+  // This is based on code from Sherpa but has been simplified.
   //
   std::ostringstream local;
   auto cout_buff = std::cout.rdbuf();
@@ -99,7 +99,7 @@ const void init() {
 // version.
 //
 template <xsccCall model, int NumPars>
-py::array_t<Real> wrapper_C(py::array_t<Real> pars,
+py::array_t<Real> wrapper_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
 			    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
 			    const int spectrumNumber,
 			    const string initStr) {
@@ -139,7 +139,7 @@ py::array_t<Real> wrapper_C(py::array_t<Real> pars,
 
 
 template <xsf77Call model, int NumPars>
-py::array_t<float> wrapper_f(py::array_t<float> pars,
+py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
 			     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
 			     const int spectrumNumber) {
 
@@ -174,6 +174,113 @@ py::array_t<float> wrapper_f(py::array_t<float> pars,
 }
 
 
+template <xsccCall model, int NumPars>
+py::array_t<Real> wrapper_con_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
+				py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
+				py::array_t<Real, py::array::c_style | py::array::forcecast> inModel,
+				const int spectrumNumber,
+				const string initStr) {
+
+  py::buffer_info pbuf = pars.request(),
+    ebuf = energyArray.request(),
+    mbuf = inModel.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
+    throw pybind11::value_error("pars and energyArray must be 1D");
+
+  if (pbuf.size != NumPars) {
+    std::ostringstream err;
+    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
+    throw std::runtime_error(err.str());
+  }
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  if (mbuf.size != ebuf.size - 1)
+    throw pybind11::value_error("energy and model array lengths do not match");
+
+  // Should we force spectrumNumber >= 1?
+  // We shouldn't be able to send in an invalid initStr so do not bother checking.
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto result = py::array_t<Real>(nelem);
+  auto errors = std::vector<Real>(nelem);
+
+  py::buffer_info obuf = result.request();
+
+  double *pptr = static_cast<Real *>(pbuf.ptr);
+  double *eptr = static_cast<Real *>(ebuf.ptr);
+  double *optr = static_cast<Real *>(obuf.ptr);
+
+  double *mptr = static_cast<Real *>(mbuf.ptr);
+
+  // Copy inModel to optr. This should use std::transform.
+  //
+  for (int i = 0; i < nelem - 1; i++) {
+    optr[i] = mptr[i];
+  }
+
+  init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
+  return result;
+}
+
+
+template <xsf77Call model, int NumPars>
+py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
+				 py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+				 py::array_t<float, py::array::c_style | py::array::forcecast> inModel,
+				 const int spectrumNumber) {
+
+  py::buffer_info pbuf = pars.request(),
+    ebuf = energyArray.request(),
+    mbuf = inModel.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
+    throw pybind11::value_error("pars and energyArray must be 1D");
+
+  if (pbuf.size != NumPars) {
+    std::ostringstream err;
+    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
+    throw std::runtime_error(err.str());
+  }
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  if (mbuf.size != ebuf.size - 1)
+    throw pybind11::value_error("energy and model array lengths do not match");
+
+  // Should we force spectrumNumber >= 1?
+  // We shouldn't be able to send in an invalid initStr so do not bother checking.
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto result = py::array_t<float>(nelem);
+  auto errors = std::vector<float>(nelem);
+
+  py::buffer_info obuf = result.request();
+
+  float *pptr = static_cast<float *>(pbuf.ptr);
+  float *eptr = static_cast<float *>(ebuf.ptr);
+  float *optr = static_cast<float *>(obuf.ptr);
+
+  float *mptr = static_cast<float *>(mbuf.ptr);
+
+  // Copy inModel to optr. This should use std::transform.
+  //
+  for (int i = 0; i < nelem - 1; i++) {
+    optr[i] = mptr[i];
+  }
+
+  init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
+  return result;
+}
+
+
 PYBIND11_MODULE(xspec_models_cxc, m) {
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
@@ -190,13 +297,30 @@ Highly experimental.
 The XSPEC model library is automatically initialized on the first call
 to one of the functions or models.
 
+Support routines
+----------------
+get_version - The version of the XSPEC model library.
+chatter - Get or set the XSPEC chatter level.
+abundance - Get or set the abundance-table setting.
+cross_section - Get or set the cross-section-table setting.
+elementAbundance - Return the abundance for an element by name or atomic number.
+elementName - Get the name of an element given the atomic number.
+cosmology - Get or set the cosmology (H0, q0, lambda0) settings.
+clearXFLT, getNumberXFLT, getXFLT, niXFLT, setXFLT - XFLT keyword handlnig.
+clearModelString, getModelString, setModelString - model string database.
+clearDb, getDb, setDb - keyword database.
+
 Additive models
 ---------------
 @@ADDMODELS@@
 
 Multiplicative models
----------------
+---------------------
 @@MULMODELS@@
+
+Convolution models
+------------------
+@@CONMODELS@@
 
 )doc";
 

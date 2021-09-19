@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from helpers import template
 
-__version__ = "0.0.13"
+__version__ = "0.0.14"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -50,6 +50,7 @@ print("###############################################")
 print(f"Number of models:  {len(info['models'])}")
 print(f"   additive:       {len(info['additive'])}")
 print(f"   multiplicative: {len(info['multiplicative'])}")
+print(f"   convolution:    {len(info['convolution'])}")
 print(f"   C++:            {len(info['C++'])}")
 print(f"   C:              {len(info['C'])}")
 print(f"   FORTRAN:        {len(info['f77'])}")

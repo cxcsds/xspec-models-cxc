@@ -1,5 +1,12 @@
 # Changes in xspec-models-cxc
 
+## 0.0.14
+
+Now supports convolution models. We now provide access to 230 of the
+231 models in the XSPEC 12.12.0 / heasoft-6.29 release. The
+unsupported model is the "pileup" model - it's the one "acn" model in
+the library.
+
 ## 0.0.13
 
 Separated out the template code from `setup.py` to a separate module

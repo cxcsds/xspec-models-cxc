@@ -51,17 +51,18 @@ lot of things to work out first!
 ## Notes
 
 There are 232 models in the heasoft-6.29 model.dat file, and this
-module provides access to
+module provides access to 231 of them (it's only the `pileup` model,
+which is the one `acn` type) that is not supported.
 
 | Type           | Total  | Supported |
 | -------------- | ------ | --------- |
 | additive       |    148 |       148 |
 | multiplicative |     61 |        61 |
-| convolution    |     22 |         0 |
+| convolution    |     22 |        22 |
 | acn            |      1 |         0 |
-| C++            |    135 |       115 |
+| C++            |    135 |       134 |
 | C              |      8 |         8 |
-| FORTRAN        |     89 |        86 |
+| FORTRAN        |     89 |        89 |
 
 I had to
 
@@ -72,7 +73,101 @@ I had to
 in order to use the module. I believe it depends on how you built the
 XSPEC model library (I am using a full XSPEC installation).
 
-## Example
+## Quick run through
+
+Here's a quick run through, which is available as
+[scripts/example.py](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example.py).
+The Examples section below has more details.
+
+```
+import numpy as np
+
+from matplotlib import pyplot as plt
+
+import xspec_models_cxc as x
+
+x.chatter(0)  # Hide the screen messages
+
+print(f"Version: {x.get_version()}")
+
+egrid = np.arange(0.1, 11, 0.01)
+emid = (egrid[:-1] + egrid[1:]) / 2
+
+for kT in [0.3, 0.5, 1, 3, 5, 10]:
+    y = x.apec(energies=egrid, pars=[kT, 1, 0])
+    plt.plot(emid, y, label=f'kT={kT}', alpha=0.6)
+
+plt.xscale('log')
+plt.yscale('log')
+
+plt.legend()
+
+plt.xlabel('Energy (keV)')
+plt.ylabel('Photon/cm$^2$/s')
+plt.title('APEC model: Abundance=1 Redshift=0')
+
+plt.savefig('example-additive.png')
+
+plt.clf()
+
+for nH in [0.01, 0.05, 0.1, 0.5, 1]:
+    y = x.phabs(energies=egrid, pars=[nH])
+    plt.plot(emid, y, label=f'nH={nH}', alpha=0.6)
+
+plt.xscale('log')
+plt.yscale('log')
+
+plt.legend()
+
+plt.xlabel('Energy (keV)')
+plt.ylabel('Relative')
+plt.title('PHABS model')
+
+plt.savefig('example-multiplicative.png')
+
+plt.clf()
+
+model = x.phabs(energies=egrid, pars=[0.05]) * x.apec(energies=egrid, pars=[0.5, 1, 0])
+plt.plot(emid, model, label='Unconvolved', c='k', alpha=0.8)
+
+for pars in [[0.1, 0], [0.2, -1], [0.2, 1]]:
+    y = x.gsmooth(energies=egrid, pars=pars, model=model)
+    plt.plot(emid, y, label=f'$\sigma$={pars[0]} index={pars[1]}', alpha=0.8)
+
+plt.xscale('log')
+plt.yscale('log')
+
+plt.legend()
+
+plt.xlabel('Energy (keV)')
+plt.ylabel('Photon/cm$^2$/s')
+plt.title('GSMOOTH(PHABS * APEC)')
+
+plt.savefig('example-convolution.png')
+
+```
+
+The screen output is just
+
+```
+Version: 12.12.0
+```
+
+and the plots are
+
+### Additive model
+
+![additive model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example-additive.png "additive model")
+
+### Multiplicative model
+
+![multipicative model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example-multiplicative.png "multiplicative model")
+
+### Convolution model
+
+![convolution model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example-convolution.png "convolution model")
+
+## Examples
 
 The XSPEC model library is automatically initalized when the first call
 is made, not when the module is loaded. The `init` function provided
@@ -81,7 +176,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.13'
+'0.0.14'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -97,50 +192,93 @@ DESCRIPTION
     The XSPEC model library is automatically initialized on the first call
     to one of the functions or models.
 
+    Support routines
+    ----------------
+    get_version - The version of the XSPEC model library.
+    chatter - Get or set the XSPEC chatter level.
+    abundance - Get or set the abundance-table setting.
+    cross_section - Get or set the cross-section-table setting.
+    elementAbundance - Return the abundance for an element by name or atomic number.
+    elementName - Get the name of an element given the atomic number.
+    cosmology - Get or set the cosmology (H0, q0, lambda0) settings.
+    clearXFLT, getNumberXFLT, getXFLT, niXFLT, setXFLT - XFLT keyword handlnig.
+    clearModelString, getModelString, setModelString - model string database.
+    clearDb, getDb, setDb - keyword database.
+
     Additive models
     ---------------
-    agauss
-    agnsed
-    agnslim
-    apec
-    bapec
+    agauss - 2 parameters.
+    agnsed - 15 parameters.
+    agnslim - 14 parameters.
+    apec - 3 parameters.
+    bapec - 4 parameters.
 ...
-    zpowerlw
-    bwcycl
+    zpowerlw - 2 parameters.
+    bwcycl - 12 parameters.
 
     Multiplicative models
-    ---------------
-    absori
-    acisabs
-    constant
-    cabs
+    ---------------------
+    absori - 6 parameters.
+    acisabs - 8 parameters.
+    constant - 1 parameters.
+    cabs - 1 parameter.
 ...
-    zwabs
-    zwndabs
+    zwabs - 2 parameters.
+    zwndabs - 3 parameters.
+
+    Convolution models
+    ------------------
+    kyconv - 12 parameters.
+    cflux - 3 parameters.
+    clumin - 4 parameters.
+    cpflux - 3 parameters.
+    gsmooth - 2 parameters.
+    ireflect - 7 parameters.
+    kdblur - 4 parameters.
+    kdblur2 - 6 parameters.
+    kerrconv - 7 parameters.
+    lsmooth - 2 parameters.
+    partcov - 1 parameter.
+    rdblur - 4 parameters.
+    reflect - 5 parameters.
+    rfxconv - 5 parameters.
+    rgsxsrc - 1 parameter.
+    simpl - 3 parameters.
+    thcomp - 4 parameters.
+    vashift - 1 parameter.
+    vmshift - 1 parameters.
+    xilconv - 6 parameters.
+    zashift - 1 parameter.
+    zmshift - 1 parameter.
 
 FUNCTIONS
     SSS_ice(...) method of builtins.PyCapsule instance
         SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
-        The XSPEC multiplicative SSS_ice model (1 parameters).
+        The XSPEC multiplicative SSS_ice model (1 parameter).
 
     TBabs(...) method of builtins.PyCapsule instance
         TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
-        The XSPEC multiplicative TBabs model (1 parameters).
+        The XSPEC multiplicative TBabs model (1 parameter).
 
 ...
+
+    zxipab(...) method of builtins.PyCapsule instance
+        zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+
+        The XSPEC multiplicative zxipab model (5 parameters).
 
     zxipcf(...) method of builtins.PyCapsule instance
         zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
-        The XSPEC multiplicative zxipcf model (4 parameters).
+        The XSPEC multiplicative zxipcf model (4 parameter).
 
 DATA
     numberElements = 30
 
 VERSION
-    0.0.13
+    0.0.14
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.blah.blah
@@ -291,11 +429,7 @@ Invoked with: -4
 
 - can I evaluate a model?
 
-At the moment we only have a limited number of models - that is those that
-are labelled as having a 'C++' interface. On the positive side, this
-is all automaticaly generated based on the `model.dat` file from XSPEC.
-
-### APEC
+### APEC (additive, C++)
 
 The `model.dat` record for this model is
 
@@ -341,7 +475,7 @@ Note that the return values have units of photons/cm^2/s as this is an
 XSPEC [additive
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Additive.html).
 
-### AGNSLIM
+### AGNSLIM (additive, FORTRAN)
 
 The `agnslim` additive model is a FORTRAN model in 12.12.0:
 
@@ -380,7 +514,7 @@ array([5.6430912e-01, 4.2761257e-01, 3.3259588e-01, ..., 2.6246285e-06,
        2.6130140e-06, 2.6132632e-06], dtype=float32)
 ```
 
-### BWCYCL
+### BWCYCL (additive, C)
 
 This is a C-style additive model:
 
@@ -415,7 +549,7 @@ array([0.00030135, 0.00030085, 0.00030123, 0.00030297, 0.00030657,
        0.00031248])
 ```
 
-### TBABS
+### TBABS (multiplicative, C++)
 
 The TBabs is a multiplicative model:
 
@@ -472,7 +606,7 @@ Note that the return values have no units as this is an XSPEC
 [multiplicative
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Multiplicative.html).
 
-### MKCFLOW
+### MKCFLOW (additive, C++)
 
 The `mkcflow` additive model has a default of 0 for its redshift, but then
 warns you about it!
@@ -506,7 +640,7 @@ array([0., 0., 0., 0., 0., 0.])
 >>>
 ```
 
-### SMAUG
+### SMAUG (additive, C)
 
 The smaug model is an interesting one you have to set the XFLT keywords
 before using it. The model is
@@ -571,3 +705,65 @@ RuntimeError: Caught an unknown exception!
 
 (it also fails for `spectrum=1` in this case but I wanted to show that
 the error message respected the spectrum value!)
+
+### CFLUX convolution model (convolution, C++)
+
+The `cflux` convolution model changes the normalization of the input
+model so it matches 10^lg10Flux for the Emin to Emax range.
+
+```
+cflux        3  0.         1.e20             C_cflux   con 0
+Emin    "keV"     0.5   0.0   0.0    1e6      1e6          -0.1
+Emax    "keV"    10.0   0.0   0.0    1e6      1e6          -0.1
+lg10Flux "cgs"  -12.0  -100.0 -100.0 100.     100.          0.01
+```
+
+Let's try to convolve a powerlaw over the range 0.5 to 10 keV:
+
+```
+>>> help(x.cflux)
+Help on built-in function cflux in module xspec_models_cxc:
+
+cflux(...) method of builtins.PyCapsule instance
+    cflux(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], model: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC convolution cflux model (3 parameters).
+
+>>> egrid = np.arange(0.4, 10.2, 0.1)
+>>> pars = [0.5, 10, -12]
+>>> y1 = x.powerlaw(pars=[-1.7], energies=egrid)
+>>> y2 = x.cflux(pars=pars, energies=egrid, model=y1)
+```
+
+Now, we need to sum up `y2` over the range 0.5 to 10 keV,
+which thanks to the grid I chose, is all-but the first and
+last bins:
+
+```
+>>> egrid[:3], egrid[-3:]
+(array([0.4, 0.5, 0.6]), array([ 9.9, 10. , 10.1]))
+```
+
+We shall use the mid-point of each bin for converting from
+photons/cm^2/s to erg/cm^2/s, and as I cannever remember the
+conversion factor, let's calculate it
+
+```
+>>> emid_kev = (egrid[1:-2] + egrid[2:-1]) / 2
+>>> import astropy.units as u
+>>> ((1 * u.keV) / (1 * u.erg)).decompose()
+<Quantity 1.60217663e-09>
+>>> conv = ((1 * u.keV) / (1 * u.erg)).decompose().value
+>>> emid_kev = (egrid[1:-2] + egrid[2:-1]) / 2
+```
+
+With this we can compare the flux of the model before and after
+convolution by `cflux`. We can see the result is 1e-12 which matches
+the lg10Flux parameter:
+
+```
+>>> (y1[1:-1] * emid_kev).sum() * conv
+2.170144702398361e-06
+>>> (y2[1:-1] * emid_kev).sum() * conv
+9.999904093891366e-13
+```

@@ -27,7 +27,7 @@ def replace_term(txt, term, replace):
     return txt[:idx] + replace + txt[idx + len(term):]
 
 
-# At what point does it become woorth using a templating system like
+# At what point does it become worth using a templating system like
 # Jinja2?
 #
 def apply(modelfile, out_dir):
@@ -62,7 +62,7 @@ def apply(modelfile, out_dir):
         sys.exit(1)
 
     # Filter to the ones we care about
-    models = [m for m in allmodels if m.modeltype in ['Add', 'Mul']]
+    models = [m for m in allmodels if m.modeltype in ['Add', 'Mul', 'Con']]
     if len(models) == 0:
         sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
         sys.exit(1)
@@ -81,22 +81,23 @@ def apply(modelfile, out_dir):
     # Ugly information flow here
     addmodels = []
     mulmodels = []
+    conmodels = []
     f77models = []
     cxxmodels = []
     cmodels = []
 
-    def wrapmod(model):
-        """What is the m.def line for this model?"""
+    def get_npars(npars):
+        if npars == 0:
+            return "no parameters"
+        if npars == 1:
+            return "1 parameter"
 
-        npars = len(model.pars)
-        if model.modeltype == 'Add':
-            mtype = 'additive'
-            addmodels.append(model.name)
-        elif model.modeltype == 'Mul':
-            mtype = 'multiplicative'
-            mulmodels.append(model.name)
-        else:
-            assert False, model.modeltype
+        return f"{npars} parameters"
+
+    def wrapmodel_add(model, npars):
+        """What is the m.def line for this additive model?"""
+
+        addmodels.append((model.name, npars))
 
         out = f'    m.def("{model.name}", wrapper'
 
@@ -113,19 +114,100 @@ def apply(modelfile, out_dir):
             assert False, (model.name, model.funcname, model.language)
 
         out += f', {npars}>, '
-        out += f'"The XSPEC {mtype} {model.name} model ({npars} parameters).",'
+        out += f'"The XSPEC additive {model.name} model ({get_npars(npars)}).",'
         out += '"pars"_a,"energies"_a,"spectrum"_a=1'
         if not model.language.startswith('Fortran'):
             out += ',"initStr"_a=""'
         out += ');'
         return out
 
-    mstrs = [wrapmod(m) for m in models]
+    def wrapmodel_mul(model, npars):
+        """What is the m.def line for this multiplicative model?"""
+
+        mulmodels.append((model.name, npars))
+
+        out = f'    m.def("{model.name}", wrapper'
+
+        if model.language == 'Fortran - single precision':
+            out += f'_f<{model.funcname}_'
+            f77models.append(model.funcname)
+        elif model.language == 'C++ style':
+            out += f'_C<C_{model.funcname}'
+            cxxmodels.append(model.funcname)
+        elif model.language == 'C style':
+            out += f'_C<{model.funcname}'
+            cmodels.append(model.funcname)
+        else:
+            assert False, (model.name, model.funcname, model.language)
+
+        out += f', {npars}>, '
+        out += f'"The XSPEC multiplicative {model.name} model ({get_npars(npars)}).",'
+        out += '"pars"_a,"energies"_a,"spectrum"_a=1'
+        if not model.language.startswith('Fortran'):
+            out += ',"initStr"_a=""'
+        out += ');'
+        return out
+
+    def wrapmodel_con(model, npars):
+        """What is the m.def line for this convolution model?"""
+
+        conmodels.append((model.name, npars))
+
+        out = f'    m.def("{model.name}", wrapper_con'
+
+        if model.language == 'Fortran - single precision':
+            out += f'_f<{model.funcname}_'
+            f77models.append(model.funcname)
+        elif model.language == 'C++ style':
+            out += f'_C<C_{model.funcname}'
+            cxxmodels.append(model.funcname)
+        elif model.language == 'C style':
+            out += f'_C<{model.funcname}'
+            cmodels.append(model.funcname)
+        else:
+            assert False, (model.name, model.funcname, model.language)
+
+        out += f', {npars}>, '
+        out += f'"The XSPEC convolution {model.name} model ({get_npars(npars)}).",'
+        out += '"pars"_a,"energies"_a,"model"_a,"spectrum"_a=1'
+        if not model.language.startswith('Fortran'):
+            out += ',"initStr"_a=""'
+        out += ');'
+        return out
+
+    def wrapmodel(model):
+        """What is the m.def line for this model?"""
+
+        npars = len(model.pars)
+        if model.modeltype == 'Add':
+            return wrapmodel_add(model, npars)
+
+        if model.modeltype == 'Mul':
+            return wrapmodel_mul(model, npars)
+
+        if model.modeltype == 'Con':
+            return wrapmodel_con(model, npars)
+
+        assert False, model.modeltype
+
+    mstrs = [wrapmodel(m) for m in models]
+
+    def hdr(arg):
+        (model, npars) = arg  # apparently I can't write Haskell pattern-matching in Python
+        return f"{model} - {get_npars(npars)}."
 
     with template.open(mode='rt') as ifh:
         out = ifh.read()
-        out = replace_term(out, '@@ADDMODELS@@', '\n'.join(addmodels))
-        out = replace_term(out, '@@MULMODELS@@', '\n'.join(mulmodels))
+
+        repl = [hdr(m) for m in addmodels]
+        out = replace_term(out, '@@ADDMODELS@@', '\n'.join(repl))
+
+        repl = [hdr(m) for m in mulmodels]
+        out = replace_term(out, '@@MULMODELS@@', '\n'.join(repl))
+
+        repl = [hdr(m) for m in conmodels]
+        out = replace_term(out, '@@CONMODELS@@', '\n'.join(repl))
+
         out = replace_term(out, '@@MODELS@@', '\n'.join(mstrs))
 
     out_dir.mkdir(exist_ok=True)
@@ -137,6 +219,7 @@ def apply(modelfile, out_dir):
             'allmodels': [m.name for m in allmodels],
             'additive': addmodels,
             'multiplicative': mulmodels,
+            'convolution': conmodels,
             'C++': cxxmodels,
             'C': cmodels,
             'f77': f77models}
