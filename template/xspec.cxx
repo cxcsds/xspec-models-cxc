@@ -373,7 +373,7 @@ cross_section - Get or set the cross-section-table setting.
 elementAbundance - Return the abundance for an element by name or atomic number.
 elementName - Get the name of an element given the atomic number.
 cosmology - Get or set the cosmology (H0, q0, lambda0) settings.
-clearXFLT, getNumberXFLT, getXFLT, niXFLT, setXFLT - XFLT keyword handlnig.
+clearXFLT, getNumberXFLT, getXFLT, inXFLT, setXFLT - XFLT keyword handlnig.
 clearModelString, getModelString, setModelString - model string database.
 clearDb, getDb, setDb - keyword database.
 
