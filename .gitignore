@@ -1,7 +1,7 @@
 *~
 build/
 *.egg-info/
-xspec_models_cxc.*.so
+src/xspec_models_cxc/_compiled.*.so
 __pycache__
 
 src/xspec.cxx

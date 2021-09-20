@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from helpers import template
 
-__version__ = "0.0.16"
+__version__ = "0.0.17"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -69,7 +69,7 @@ xspec_libs = ['XSFunctions', 'XSUtil', 'XS', 'hdsp_6.29',
               'cfitsio', 'CCfits_2.6', 'wcs-7.3.1']
 
 ext_modules = [
-    Pybind11Extension("xspec_models_cxc",
+    Pybind11Extension("xspec_models_cxc._compiled",
                       [str(info['outfile'])],
                       depends=[str(modelfile), str(template)],  # is this useful?
                       cxx_std=11,

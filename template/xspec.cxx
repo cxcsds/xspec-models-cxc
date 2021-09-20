@@ -348,7 +348,7 @@ py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::arr
 }
 
 
-PYBIND11_MODULE(xspec_models_cxc, m) {
+PYBIND11_MODULE(_compiled, m) {
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else

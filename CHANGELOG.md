@@ -1,5 +1,14 @@
 # Changes in xspec-models-cxc
 
+## 0.0.17
+
+Reworked the code layout so that the compiled is now available as
+`xspec_models_cxc._compiled` which is re-exported by the
+`xspec_models_cxc` module. Users should see no difference when
+importing `xspec_models_cxc`. This is just to set up future changes to
+add model information, but I am not 100% convinced the build is
+correct.
+
 ## 0.0.16
 
 Oops: a check I added to make an error message more readable lead to
