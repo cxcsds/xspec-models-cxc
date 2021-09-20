@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.0.16
+
+Oops: a check I added to make an error message more readable lead to
+it always failing (when it was used correctly). Oops.
+
 ## 0.0.15
 
 Models can now work in-place - that is over-write an input array

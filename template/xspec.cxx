@@ -114,7 +114,7 @@ void validate_par_size(const int NumPars, const int got) {
 // Provide a useful error message if the sizes don't match
 void validate_grid_size(const int energySize, const int modelSize) {
 
-  if (energySize == modelSize)
+  if (energySize == modelSize + 1)
     return;
 
   std::ostringstream err;
