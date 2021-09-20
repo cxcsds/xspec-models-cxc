@@ -1,5 +1,50 @@
 # Changes in xspec-models-cxc
 
+## 0.0.15
+
+Models can now work in-place - that is over-write an input array
+rather than allocating a new array at each call. The convolution
+models now always use this - over-writing the model argument - and the
+other models can use this by setting the out argument. The docstrings
+for the models have "; inplace" added to them to indicate this
+behavior. For example
+
+```
+>>> help(xspec_models_cxc.apec)
+Help on built-in function apec in module xspec_models_cxc:
+
+apec(...) method of builtins.PyCapsule instance
+    apec(*args, **kwargs)
+    Overloaded function.
+
+    1. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '')
+-> numpy.ndarray[numpy.float64]
+
+    The XSPEC additive apec model (3 parameters).
+
+    2. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC additive apec model (3 parameters); inplace.
+```
+
+The change to the convolution models means that the example script
+had to change from
+
+```
+for pars in [...];
+    y = x.gsmooth(ebergies=egrid, pars=pars, model=model)
+	plt.plot(...)
+```
+
+to
+
+```
+for pars in [...];
+    # the model argument gets over-written by gsmooth
+    y = x.gsmooth(ebergies=egrid, pars=pars, model=model.copy())
+	plt.plot(...)
+```
+
 ## 0.0.14
 
 Now supports convolution models. We now provide access to 230 of the

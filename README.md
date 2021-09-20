@@ -131,7 +131,8 @@ model = x.phabs(energies=egrid, pars=[0.05]) * x.apec(energies=egrid, pars=[0.5,
 plt.plot(emid, model, label='Unconvolved', c='k', alpha=0.8)
 
 for pars in [[0.1, 0], [0.2, -1], [0.2, 1]]:
-    y = x.gsmooth(energies=egrid, pars=pars, model=model)
+    # the model argument gets over-written by gsmooth
+    y = x.gsmooth(energies=egrid, pars=pars, model=model.copy())
     plt.plot(emid, y, label=f'$\sigma$={pars[0]} index={pars[1]}', alpha=0.8)
 
 plt.xscale('log')
@@ -176,7 +177,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.14'
+'0.0.15'
 >>> help(x)
 Help on module xspec_models_cxc:
 
@@ -253,32 +254,61 @@ DESCRIPTION
 
 FUNCTIONS
     SSS_ice(...) method of builtins.PyCapsule instance
-        SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+        SSS_ice(*args, **kwargs)
+        Overloaded function.
+
+        1. SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
         The XSPEC multiplicative SSS_ice model (1 parameter).
 
+        2. SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+
+        The XSPEC multiplicative SSS_ice model (1 parameter); inplace.
+
     TBabs(...) method of builtins.PyCapsule instance
-        TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+        TBabs(*args, **kwargs)
+        Overloaded function.
+
+        1. TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
         The XSPEC multiplicative TBabs model (1 parameter).
+
+        2. TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+        The XSPEC multiplicative TBabs model (1 parameter); inplace.
 
 ...
 
     zxipab(...) method of builtins.PyCapsule instance
-        zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+        zxipab(*args, **kwargs)
+        Overloaded function.
+
+        1. zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
         The XSPEC multiplicative zxipab model (5 parameters).
 
-    zxipcf(...) method of builtins.PyCapsule instance
-        zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+        2. zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
-        The XSPEC multiplicative zxipcf model (4 parameter).
+        The XSPEC multiplicative zxipab model (5 parameters); inplace.
+
+    zxipcf(...) method of builtins.PyCapsule instance
+        zxipcf(*args, **kwargs)
+        Overloaded function.
+
+        1. zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str
+= '') -> numpy.ndarray[numpy.float64]
+
+        The XSPEC multiplicative zxipcf model (4 parameters).
+
+        2. zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+        The XSPEC multiplicative zxipcf model (4 parameters); inplace.
 
 DATA
     numberElements = 30
 
 VERSION
-    0.0.14
+    0.0.15
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.blah.blah
@@ -450,10 +480,17 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 Help on built-in function apec in module xspec_models_cxc:
 
 apec(...) method of builtins.PyCapsule instance
-    apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') ->
-numpy.ndarray[numpy.float64]
+    apec(*args, **kwargs)
+    Overloaded function.
+
+    1. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '')
+-> numpy.ndarray[numpy.float64]
 
     The XSPEC additive apec model (3 parameters).
+
+    2. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC additive apec model (3 parameters); inplace.
 
 >>> pars = [1, 1, 0]
 >>> egrid = [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -474,6 +511,26 @@ array([0.47038697, 0.21376409, 0.1247977 , 0.08182932])
 Note that the return values have units of photons/cm^2/s as this is an
 XSPEC [additive
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Additive.html).
+
+### EVALUATING MODELS
+
+Additive and multipicative models can either create a new output array
+on each call - such as
+
+```
+>>> y = x.apec(pars=pars, energies=egrid)
+```
+
+or they can re-use an output array (in a similar manner to the `out`
+argument of NumPy routines like
+[np.cumsum](https://numpy.org/doc/stable/reference/generated/numpy.cumsum.html)):
+
+```
+>>> y = np.zeros(egrid.size - 1)
+>>> yout = x.apec(pars=pars, energies=egrid, out=y)
+>>> yout is y
+True
+```
 
 ### AGNSLIM (additive, FORTRAN)
 
@@ -502,9 +559,17 @@ redshift   " "     0.0    0.      0.      5 5 -1
 Help on built-in function agnslim in module xspec_models_cxc:
 
 agnslim(...) method of builtins.PyCapsule instance
-    agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+    agnslim(*args, **kwargs)
+    Overloaded function.
+
+    1. agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
 
     The XSPEC additive agnslim model (14 parameters).
+
+    2. agnslim(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32],
+spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+
+    The XSPEC additive agnslim model (14 parameters); inplace.
 
 >>> pars = [1e7, 100, 1, 0, 0.5, 100, 0.2, 2.4, 3, 10, 20, -1, -1, 0]
 >>> egrid = np.arange(0.1, 11, 0.01)
@@ -539,9 +604,16 @@ FFnorm  " "     1          -1     -1       100       100        -1
 Help on built-in function bwcycl in module xspec_models_cxc:
 
 bwcycl(...) method of builtins.PyCapsule instance
-    bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+    bwcycl(*args, **kwargs)
+    Overloaded function.
+
+    1. bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
     The XSPEC additive bwcycl model (12 parameters).
+
+    2. bwcycl(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC additive bwcycl model (12 parameters); inplace.
 
 >>> pars = [10, 1.3, 1.5, 1.8, 4, 1, 5, 44, 5, 0, 1, 1]
 >>> x.bwcycl(pars, [0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56])
@@ -571,9 +643,16 @@ decreases by a magnitude or two:
 Help on built-in function TBabs in module xspec_models_cxc:
 
 TBabs(...) method of builtins.PyCapsule instance
-    TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+    TBabs(*args, **kwargs)
+    Overloaded function.
 
-    The XSPEC multiplicative TBabs model (1 parameters).
+    1. TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC multiplicative TBabs model (1 parameter).
+
+    2. TBabs(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+
+    The XSPEC multiplicative TBabs model (1 parameter); inplace.
 
 >>> x.TBabs([1], egrid)
 tbvabs Version 2.3
@@ -727,13 +806,18 @@ Help on built-in function cflux in module xspec_models_cxc:
 cflux(...) method of builtins.PyCapsule instance
     cflux(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], model: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
 
-    The XSPEC convolution cflux model (3 parameters).
+    The XSPEC convolution cflux model (3 parameters); inplace.
 
 >>> egrid = np.arange(0.4, 10.2, 0.1)
 >>> pars = [0.5, 10, -12]
 >>> y1 = x.powerlaw(pars=[-1.7], energies=egrid)
->>> y2 = x.cflux(pars=pars, energies=egrid, model=y1)
+>>> y2 = x.cflux(pars=pars, energies=egrid, model=y1.copy())
 ```
+
+Note that convolution models **always** over-write the `model`
+argument - so if we had used `model=y1` rather than `model=y1.copy()`
+then `y1` would have been changed (which is normally okay, but in this
+example I wanted to compare the input and output arrays).
 
 Now, we need to sum up `y2` over the range 0.5 to 10 keV,
 which thanks to the grid I chose, is all-but the first and
@@ -745,7 +829,7 @@ last bins:
 ```
 
 We shall use the mid-point of each bin for converting from
-photons/cm^2/s to erg/cm^2/s, and as I cannever remember the
+photons/cm^2/s to erg/cm^2/s, and as I can never remember the
 conversion factor, let's calculate it
 
 ```

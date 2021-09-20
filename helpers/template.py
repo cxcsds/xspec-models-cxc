@@ -94,12 +94,14 @@ def apply(modelfile, out_dir):
 
         return f"{npars} parameters"
 
-    def wrapmodel_add(model, npars):
-        """What is the m.def line for this additive model?"""
+    def wrapmodel_basic(model, npars, call, text,
+                        inplace=False,
+                        convolution=False):
+        """Create the m.def line for a single model"""
 
-        addmodels.append((model.name, npars))
+        assert not(inplace and convolution)
 
-        out = f'    m.def("{model.name}", wrapper'
+        out = f'    m.def("{model.name}", {call}'
 
         if model.language == 'Fortran - single precision':
             out += f'_f<{model.funcname}_'
@@ -113,12 +115,36 @@ def apply(modelfile, out_dir):
         else:
             assert False, (model.name, model.funcname, model.language)
 
-        out += f', {npars}>, '
-        out += f'"The XSPEC additive {model.name} model ({get_npars(npars)}).",'
-        out += '"pars"_a,"energies"_a,"spectrum"_a=1'
+        out += f', {npars}>, "{text}",'
+        out += '"pars"_a,"energies"_a,'
+        if convolution:
+            out += '"model"_a,'
+
+        if inplace:
+            out += '"out"_a,'
+
+        out += '"spectrum"_a=1'
         if not model.language.startswith('Fortran'):
             out += ',"initStr"_a=""'
+
+        if inplace or convolution:
+            out += ',py::return_value_policy::reference'
+
         out += ');'
+        return out
+
+    def wrapmodel_add(model, npars):
+        """What is the m.def line for this additive model?"""
+
+        addmodels.append((model.name, npars))
+
+        out = wrapmodel_basic(model, npars, 'wrapper',
+                              f'The XSPEC additive {model.name} model ({get_npars(npars)}).')
+        out += '\n'
+        out += wrapmodel_basic(model, npars, 'wrapper_inplace',
+                               f'The XSPEC additive {model.name} model ({get_npars(npars)}); inplace.',
+                               inplace=True)
+
         return out
 
     def wrapmodel_mul(model, npars):
@@ -126,26 +152,13 @@ def apply(modelfile, out_dir):
 
         mulmodels.append((model.name, npars))
 
-        out = f'    m.def("{model.name}", wrapper'
+        out = wrapmodel_basic(model, npars, 'wrapper',
+                              f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}).')
+        out += '\n'
+        out += wrapmodel_basic(model, npars, 'wrapper_inplace',
+                               f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}); inplace.',
+                               inplace=True)
 
-        if model.language == 'Fortran - single precision':
-            out += f'_f<{model.funcname}_'
-            f77models.append(model.funcname)
-        elif model.language == 'C++ style':
-            out += f'_C<C_{model.funcname}'
-            cxxmodels.append(model.funcname)
-        elif model.language == 'C style':
-            out += f'_C<{model.funcname}'
-            cmodels.append(model.funcname)
-        else:
-            assert False, (model.name, model.funcname, model.language)
-
-        out += f', {npars}>, '
-        out += f'"The XSPEC multiplicative {model.name} model ({get_npars(npars)}).",'
-        out += '"pars"_a,"energies"_a,"spectrum"_a=1'
-        if not model.language.startswith('Fortran'):
-            out += ',"initStr"_a=""'
-        out += ');'
         return out
 
     def wrapmodel_con(model, npars):
@@ -153,26 +166,10 @@ def apply(modelfile, out_dir):
 
         conmodels.append((model.name, npars))
 
-        out = f'    m.def("{model.name}", wrapper_con'
+        out = wrapmodel_basic(model, npars, 'wrapper_con',
+                              f'The XSPEC convolution {model.name} model ({get_npars(npars)}); inplace.',
+                              convolution=True)
 
-        if model.language == 'Fortran - single precision':
-            out += f'_f<{model.funcname}_'
-            f77models.append(model.funcname)
-        elif model.language == 'C++ style':
-            out += f'_C<C_{model.funcname}'
-            cxxmodels.append(model.funcname)
-        elif model.language == 'C style':
-            out += f'_C<{model.funcname}'
-            cmodels.append(model.funcname)
-        else:
-            assert False, (model.name, model.funcname, model.language)
-
-        out += f', {npars}>, '
-        out += f'"The XSPEC convolution {model.name} model ({get_npars(npars)}).",'
-        out += '"pars"_a,"energies"_a,"model"_a,"spectrum"_a=1'
-        if not model.language.startswith('Fortran'):
-            out += ',"initStr"_a=""'
-        out += ');'
         return out
 
     def wrapmodel(model):

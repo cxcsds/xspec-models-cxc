@@ -78,6 +78,9 @@ const void init() {
 //
 //   void agnsed_(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer);
 //
+// although xsf77Call seems to have the integer arguments passed
+// directly rather than as a poniter.
+//
 // The C_xxx interface looks like
 //
 //   void C_apec(const double* energy, int nFlux, const double* params,
@@ -95,9 +98,33 @@ const void init() {
 //   typedef double Real;
 //   typedef std::valarray<Real> RealArray;
 //
-// but is it safe to assume this? We avoid this error by wrapping the C_xxx
-// version.
+// For the moment we just wrap the C_xxx interface rather than CXX_xxx.
 //
+
+// Check the number of parameters
+void validate_par_size(const int NumPars, const int got) {
+  if (NumPars == got)
+    return;
+
+  std::ostringstream err;
+  err << "Expected " << NumPars << " parameters but sent " << got;
+  throw std::runtime_error(err.str());
+}
+
+// Provide a useful error message if the sizes don't match
+void validate_grid_size(const int energySize, const int modelSize) {
+
+  if (energySize == modelSize)
+    return;
+
+  std::ostringstream err;
+  err << "Energy grid size must be 1 more than model: "
+      << "energies has " << energySize << " elements and "
+      << "model has " << modelSize << " elements";
+  throw pybind11::value_error(err.str());
+}
+
+
 template <xsccCall model, int NumPars>
 py::array_t<Real> wrapper_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
 			    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
@@ -108,11 +135,7 @@ py::array_t<Real> wrapper_C(py::array_t<Real, py::array::c_style | py::array::fo
   if (pbuf.ndim != 1 || ebuf.ndim != 1)
     throw pybind11::value_error("pars and energyArray must be 1D");
 
-  if (pbuf.size != NumPars) {
-    std::ostringstream err;
-    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
-    throw std::runtime_error(err.str());
-  }
+  validate_par_size(NumPars, pbuf.size);
 
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at least 3 bin edges");
@@ -138,6 +161,46 @@ py::array_t<Real> wrapper_C(py::array_t<Real, py::array::c_style | py::array::fo
 }
 
 
+// I believe this shoud be marked py::return_value_policy::reference
+//
+template <xsccCall model, int NumPars>
+py::array_t<Real> wrapper_inplace_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
+				    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
+				    py::array_t<Real, py::array::c_style | py::array::forcecast> output,
+				    const int spectrumNumber,
+				    const string initStr) {
+
+  py::buffer_info pbuf = pars.request(),
+    ebuf = energyArray.request(),
+    obuf = output.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1|| obuf.ndim != 1)
+    throw pybind11::value_error("pars, energyArray, and model must be 1D");
+
+  validate_par_size(NumPars, pbuf.size);
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  validate_grid_size(ebuf.size, obuf.size);
+
+  // Should we force spectrumNumber >= 1?
+  // We shouldn't be able to send in an invalid initStr so do not bother checking.
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto errors = std::vector<Real>(nelem);
+
+  double *pptr = static_cast<Real *>(pbuf.ptr);
+  double *eptr = static_cast<Real *>(ebuf.ptr);
+  double *optr = static_cast<Real *>(obuf.ptr);
+
+  init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
+  return output;
+}
+
+
 template <xsf77Call model, int NumPars>
 py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
 			     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
@@ -147,11 +210,7 @@ py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::
   if (pbuf.ndim != 1 || ebuf.ndim != 1)
     throw pybind11::value_error("pars and energyArray must be 1D");
 
-  if (pbuf.size != NumPars) {
-    std::ostringstream err;
-    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
-    throw std::runtime_error(err.str());
-  }
+  validate_par_size(NumPars, pbuf.size);
 
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at least 3 bin edges");
@@ -174,6 +233,44 @@ py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::
 }
 
 
+// I believe this shoud be marked py::return_value_policy::reference
+//
+template <xsf77Call model, int NumPars>
+py::array_t<float> wrapper_inplace_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
+				     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+				     py::array_t<float, py::array::c_style | py::array::forcecast> output,
+				     const int spectrumNumber) {
+
+  py::buffer_info pbuf = pars.request(),
+    ebuf = energyArray.request(),
+    obuf = output.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1|| obuf.ndim != 1)
+    throw pybind11::value_error("pars, energyArray, and model must be 1D");
+
+  validate_par_size(NumPars, pbuf.size);
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  validate_grid_size(ebuf.size, obuf.size);
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto errors = std::vector<float>(nelem);
+
+  float *pptr = static_cast<float *>(pbuf.ptr);
+  float *eptr = static_cast<float *>(ebuf.ptr);
+  float *optr = static_cast<float *>(obuf.ptr);
+
+  init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
+  return output;
+}
+
+
+// I believe this shoud be marked py::return_value_policy::reference
+//
 template <xsccCall model, int NumPars>
 py::array_t<Real> wrapper_con_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
 				py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
@@ -187,17 +284,12 @@ py::array_t<Real> wrapper_con_C(py::array_t<Real, py::array::c_style | py::array
   if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
     throw pybind11::value_error("pars and energyArray must be 1D");
 
-  if (pbuf.size != NumPars) {
-    std::ostringstream err;
-    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
-    throw std::runtime_error(err.str());
-  }
+  validate_par_size(NumPars, pbuf.size);
 
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at least 3 bin edges");
 
-  if (mbuf.size != ebuf.size - 1)
-    throw pybind11::value_error("energy and model array lengths do not match");
+  validate_grid_size(ebuf.size, mbuf.size);
 
   // Should we force spectrumNumber >= 1?
   // We shouldn't be able to send in an invalid initStr so do not bother checking.
@@ -205,29 +297,20 @@ py::array_t<Real> wrapper_con_C(py::array_t<Real, py::array::c_style | py::array
   const int nelem = ebuf.size - 1;
 
   // Can we easily zero out the arrays?
-  auto result = py::array_t<Real>(nelem);
   auto errors = std::vector<Real>(nelem);
-
-  py::buffer_info obuf = result.request();
 
   double *pptr = static_cast<Real *>(pbuf.ptr);
   double *eptr = static_cast<Real *>(ebuf.ptr);
-  double *optr = static_cast<Real *>(obuf.ptr);
-
   double *mptr = static_cast<Real *>(mbuf.ptr);
 
-  // Copy inModel to optr. This should use std::transform.
-  //
-  for (int i = 0; i < nelem - 1; i++) {
-    optr[i] = mptr[i];
-  }
-
   init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
-  return result;
+  model(eptr, nelem, pptr, spectrumNumber, mptr, errors.data(), initStr.c_str());
+  return inModel;
 }
 
 
+// I believe this shoud be marked py::return_value_policy::reference
+//
 template <xsf77Call model, int NumPars>
 py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
 				 py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
@@ -240,17 +323,12 @@ py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::arr
   if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
     throw pybind11::value_error("pars and energyArray must be 1D");
 
-  if (pbuf.size != NumPars) {
-    std::ostringstream err;
-    err << "Expected " << NumPars << " parameters but sent " << pbuf.size;
-    throw std::runtime_error(err.str());
-  }
+  validate_par_size(NumPars, pbuf.size);
 
   if (ebuf.size < 3)
     throw pybind11::value_error("Expected at least 3 bin edges");
 
-  if (mbuf.size != ebuf.size - 1)
-    throw pybind11::value_error("energy and model array lengths do not match");
+  validate_grid_size(ebuf.size, mbuf.size);
 
   // Should we force spectrumNumber >= 1?
   // We shouldn't be able to send in an invalid initStr so do not bother checking.
@@ -258,26 +336,15 @@ py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::arr
   const int nelem = ebuf.size - 1;
 
   // Can we easily zero out the arrays?
-  auto result = py::array_t<float>(nelem);
   auto errors = std::vector<float>(nelem);
-
-  py::buffer_info obuf = result.request();
 
   float *pptr = static_cast<float *>(pbuf.ptr);
   float *eptr = static_cast<float *>(ebuf.ptr);
-  float *optr = static_cast<float *>(obuf.ptr);
-
   float *mptr = static_cast<float *>(mbuf.ptr);
 
-  // Copy inModel to optr. This should use std::transform.
-  //
-  for (int i = 0; i < nelem - 1; i++) {
-    optr[i] = mptr[i];
-  }
-
   init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
-  return result;
+  model(eptr, nelem, pptr, spectrumNumber, mptr, errors.data());
+  return inModel;
 }
 
 

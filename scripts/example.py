@@ -51,7 +51,8 @@ model = x.phabs(energies=egrid, pars=[0.05]) * x.apec(energies=egrid, pars=[0.5,
 plt.plot(emid, model, label='Unconvolved', c='k', alpha=0.8)
 
 for pars in [[0.1, 0], [0.2, -1], [0.2, 1]]:
-    y = x.gsmooth(energies=egrid, pars=pars, model=model)
+    # the model argument gets over-written by gsmooth
+    y = x.gsmooth(energies=egrid, pars=pars, model=model.copy())
     plt.plot(emid, y, label=f'$\sigma$={pars[0]} index={pars[1]}', alpha=0.8)
 
 plt.xscale('log')
