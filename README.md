@@ -171,8 +171,9 @@ and the plots are
 ## What models are supported?
 
 The `info()` and `list_models()` routines give information on the
-supported models (but, in 0.0.18, they do not include parameter
-information, which is a bit of a shame).
+supported models.
+
+### Listing models
 
 ```
 >>> import xspec_models_cxc as x
@@ -181,14 +182,54 @@ information, which is a bit of a shame).
 ... 'zvphabs', 'zwabs', 'zwndabs', 'zxipab', 'zxipcf']
 >>> x.list_models(modeltype=x.ModelType.Con)
 ['cflux', 'clumin', 'cpflux', 'gsmooth', 'ireflect', 'kdblur', 'kdblur2', 'kerrconv', 'kyconv', 'lsmooth', 'partcov', 'rdblur', 'reflect', 'rfxconv', 'rgsxsrc', 'simpl', 'thcomp', 'vashift', 'vmshift', 'xilconv', 'zashift', 'zmshift']
+>>> x.list_models(modeltype=x.ModelType.Con, language=x.LanguageStyle.F77Style4)
+['kyconv', 'rgsxsrc', 'thcomp']
+```
+
+### Querying a model
+
+```
 >>> x.info('apec')
-XSPECModel(modeltype=<ModelType.Add: 1>, name='apec', funcname='apec', language=<LanguageStyle.CppStyle8: 1>, elo=0.0, ehi=1e+20, use_errors=False, can_cache=True)
+XSPECModel(modeltype=<ModelType.Add: 1>, name='apec', funcname='apec', language=<LanguageStyle.CppStyle8: 1>, elo=0.0, ehi=1e+20, parameters=[XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT', default=1.0, units='keV', frozen=False, softmin=0.008, softmax=64.0, hardmin=0.008, hardmax=64.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='Abundanc', default=1.0, units=None, frozen=True, softmin=0.0, softmax=5.0, hardmin=0.0, hardmax=5.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='Redshift', default=0.0, units=None, frozen=True, softmin=-0.999, softmax=10.0, hardmin=-0.999, hardmax=10.0, delta=0.01)], use_errors=False, can_cache=True)
 >>> x.info('TBabs')
-XSPECModel(modeltype=<ModelType.Mul: 2>, name='TBabs', funcname='tbabs', language=<LanguageStyle.CppStyle8: 1>, elo=0.03, ehi=1e+20, use_errors=False, can_cache=True)
+XSPECModel(modeltype=<ModelType.Mul: 2>, name='TBabs', funcname='tbabs', language=<LanguageStyle.CppStyle8: 1>, elo=0.03, ehi=1e+20, parameters=[XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH', default=1.0, units='10^22', frozen=False, softmin=0.0, softmax=100000.0, hardmin=0.0, hardmax=1000000.0, delta=0.001)], use_errors=False, can_cache=True)
 >>> x.info('zxipab')
-XSPECModel(modeltype=<ModelType.Mul: 2>, name='zxipab', funcname='zxipab', language=<LanguageStyle.F77Style4: 3>, elo=0.01, ehi=1e+20, use_errors=False, can_cache=True)
+XSPECModel(modeltype=<ModelType.Mul: 2>, name='zxipab', funcname='zxipab', language=<LanguageStyle.F77Style4: 3>, elo=0.01, ehi=1e+20, parameters=[XSPECParameter(paramtype=<ParamType.Default: 1>, name='nHmin', default=0.01, units='10^22', frozen=False, softmin=1e-07, softmax=1000.0, hardmin=1e-07, hardmax=1000000.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nHmax', default=10.0, units='10^22', frozen=False, softmin=1e-07, softmax=1000.0, hardmin=1e-07, hardmax=1000000.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='beta', default=0.0, units=None, frozen=False, softmin=-10.0, softmax=10.0, hardmin=-10.0, hardmax=10.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='log_xi', default=3.0, units=None, frozen=False, softmin=-3.0, softmax=6.0, hardmin=-3.0, hardmax=6.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='redshift', default=0.0, units=None, frozen=True, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.01)], use_errors=False, can_cache=True)
 >>> x.info('smaug')
-XSPECModel(modeltype=<ModelType.Add: 1>, name='smaug', funcname='xsmaug', language=<LanguageStyle.CStyle8: 2>, elo=0.0, ehi=1e+20, use_errors=False, can_cache=False)
+XSPECModel(modeltype=<ModelType.Add: 1>, name='smaug', funcname='xsmaug', language=<LanguageStyle.CStyle8: 2>, elo=0.0, ehi=1e+20, parameters=[XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_cc', default=1.0, units='keV', frozen=False, softmin=0.1, softmax=10.0, hardmin=0.08, hardmax=100.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_dt',
+default=1.0, units='keV', frozen=False, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=100.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_ix', default=0.0, units=None, frozen=True, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_ir', default=0.1, units='Mpc', frozen=True, softmin=0.0001, softmax=1.0, hardmin=0.0001, hardmax=1.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_cx', default=0.5, units=None, frozen=False, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_cr', default=0.1, units='Mpc', frozen=False, softmin=0.0001, softmax=10.0, hardmin=0.0001, hardmax=20.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_tx', default=0.0, units=None, frozen=True, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='kT_tr', default=0.5, units='Mpc', frozen=True, softmin=0.0001, softmax=1.0, hardmin=0.0001, hardmax=3.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_cc', default=1.0, units='cm**-3', frozen=True, softmin=1e-06, softmax=3.0, hardmin=1e-06, hardmax=3.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_ff', default=1.0, units=None, frozen=True, softmin=0.0, softmax=1.0, hardmin=0.0, hardmax=1.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_cx', default=0.5, units=None, frozen=False, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_cr', default=0.1, units='Mpc', frozen=False, softmin=0.0001, softmax=1.0, hardmin=0.0001, hardmax=2.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_gx', default=0.0, units=None, frozen=True, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='nH_gr', default=0.002, units='Mpc', frozen=True, softmin=0.0001, softmax=10.0, hardmin=0.0001,
+hardmax=20.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='Ab_cc', default=1.0, units='solar', frozen=True, softmin=0.0, softmax=3.0, hardmin=0.0, hardmax=5.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='Ab_xx', default=0.0, units=None, frozen=True, softmin=0.0, softmax=10.0, hardmin=0.0, hardmax=10.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, name='Ab_rr', default=0.1, units='Mpc', frozen=True, softmin=0.0001, softmax=1.0, hardmin=0.0001, hardmax=1.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='redshift', default=0.01, units=None, frozen=True, softmin=0.0001, softmax=10.0, hardmin=0.0001, hardmax=10.0, delta=1.0), XSPECParameter(paramtype=<ParamType.Default: 1>, name='meshpts', default=10.0, units=None, frozen=True, softmin=1.0, softmax=10000.0, hardmin=1.0, hardmax=10000.0, delta=1.0), XSPECParameter(paramtype=<ParamType.Default: 1>, name='rcutoff', default=2.0, units='Mpc', frozen=True, softmin=1.0, softmax=3.0, hardmin=1.0, hardmax=3.0, delta=0.01), XSPECParameter(paramtype=<ParamType.Default: 1>, name='mode', default=1.0, units=None, frozen=True, softmin=0.0, softmax=2.0, hardmin=0.0, hardmax=2.0, delta=1.0), XSPECParameter(paramtype=<ParamType.Default: 1>, name='itype', default=2.0, units=None, frozen=True, softmin=1.0, softmax=4.0, hardmin=1.0, hardmax=4.0, delta=1.0)], use_errors=False, can_cache=False)
+```
+
+### What are the parameters for a model?
+
+```
+>>> m = x.info('smaug')
+>>> for p in m.parameters:
+...     print(f' {p.name:10s} = {p.default:5g}  units={p.units}  frozen={p.frozen}  range: {p.hardmin}-{p.hardmax}')
+...
+ kT_cc      =     1  units=keV  frozen=False  range: 0.08-100.0
+ kT_dt      =     1  units=keV  frozen=False  range: 0.0-100.0
+ kT_ix      =     0  units=None  frozen=True  range: 0.0-10.0
+ kT_ir      =   0.1  units=Mpc  frozen=True  range: 0.0001-1.0
+ kT_cx      =   0.5  units=None  frozen=False  range: 0.0-10.0
+ kT_cr      =   0.1  units=Mpc  frozen=False  range: 0.0001-20.0
+ kT_tx      =     0  units=None  frozen=True  range: 0.0-10.0
+ kT_tr      =   0.5  units=Mpc  frozen=True  range: 0.0001-3.0
+ nH_cc      =     1  units=cm**-3  frozen=True  range: 1e-06-3.0
+ nH_ff      =     1  units=None  frozen=True  range: 0.0-1.0
+ nH_cx      =   0.5  units=None  frozen=False  range: 0.0-10.0
+ nH_cr      =   0.1  units=Mpc  frozen=False  range: 0.0001-2.0
+ nH_gx      =     0  units=None  frozen=True  range: 0.0-10.0
+ nH_gr      = 0.002  units=Mpc  frozen=True  range: 0.0001-20.0
+ Ab_cc      =     1  units=solar  frozen=True  range: 0.0-5.0
+ Ab_xx      =     0  units=None  frozen=True  range: 0.0-10.0
+ Ab_rr      =   0.1  units=Mpc  frozen=True  range: 0.0001-1.0
+ redshift   =  0.01  units=None  frozen=True  range: 0.0001-10.0
+ meshpts    =    10  units=None  frozen=True  range: 1.0-10000.0
+ rcutoff    =     2  units=Mpc  frozen=True  range: 1.0-3.0
+ mode       =     1  units=None  frozen=True  range: 0.0-2.0
+ itype      =     2  units=None  frozen=True  range: 1.0-4.0
 ```
 
 ## Examples
@@ -200,12 +241,84 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.18'
+'0.0.19'
 >>> help(x)
 Help on package xspec_models_cxc:
 
 NAME
     xspec_models_cxc - Experiment with XSPEC models.
+
+DESCRIPTION
+    The XSPEC model library is automatically initialized when the first
+    call is made, and not when the module is loaded.
+
+    There are three types of symbols in this package:
+
+    1. model functions, such as `apec` and `TBabs`.
+    2. routines that set or get values such as the abundance
+       table (`abundance`), cross-section table (`cross_sections`),
+       cosmology (`cosmology`), and the chatter level (`chatter`).
+    3. routines about the models: `info` and `list_models`.
+
+    Examples
+    --------
+
+    What version of XSPEC is being used?
+
+    >>> import xspec_models_cxc as x
+    >>> x.get_version()
+    '12.12.0'
+
+    What models are supported (the actual list depends on the
+    version of XSPEC the code was compiled against)?
+
+    >>> import xspec_models_cxc as x
+    >>> x.list_models()
+    ['SSS_ice', 'TBabs', 'TBfeo', ..., 'zwndabs', 'zxipab', 'zxipcf']
+
+    Evaluate the multiplication of phabs and apec models, with their
+    default parameter ranges, on the grid from 0.1 to 10 keV with a bin
+    size of 1 eV. Note that the return value has one less element than the
+    grid, because it is evaluated over the range egrid[0]-egrid[1],
+    egrid[1]-egrid[2], ..., egrid[-2]-egrid[-1] - which for this case is
+    0.100-0.101, 0.101-0.102, ..., 9.998-9.999 keV.
+
+    >>> import numpy as np
+    >>> from matplotlib import pyplot as plt
+    >>> import xspec_models_cxc as x
+    >>> egrid = np.arange(0.1, 10, 0.001)
+    >>> apec = x.info('apec')
+    >>> phabs = x.info('phabs')
+    >>> pars_apec = [p.default for p in apec.parameters]
+    >>> pars_phabs = [p.default for p in phabs.parameters]
+    >>> yapec = x.apec(energies=egrid, pars=pars_apec)
+    >>> yphabs = x.phabs(energies=egrid, pars=pars_phabs)
+    >>> ymodel = yphabs * yapec
+    >>> emid = (egrid[:-1] + egrid[1:]) / 2
+    >>> plt.plot(emid, ymodel, label='phabs * apec')
+    >>> plt.yscale('log')
+    >>> plt.ylim(1e-9, 0.01)
+    >>> plt.legend()
+    >>> plt.xlabel('Energy (keV)')
+    >>> plt.ylabel('Photon/cm$^2$/s')
+
+    We can include a convolution component - in this case the kdblur model
+    - even if it is physically unrealistic. The two differences here is
+    that the model requires the data to be convolved to be sent in as the
+    `model` argument, and that this array is changed by the routine (in
+    the same way that the out parameter works for NumPy ufunc
+    routines). The convolution models do also return the value so we could
+    have said
+
+        out = x.kdblur(ebergies=.., pars=.., model=ymodel.copy())
+
+    which would keep the original model values.
+
+    >>> kdblur = x.info('kdblur')
+    >>> pars_kdblur = [p.default for p in kdblur.parameters]
+    >>> x.kdblur(energies=egrid, pars=pars_kdblur, model=ymodel)
+    >>> plt.plot(emid, ymodel, alpha=0.8, label='Convolved')
+    >>> plt.legend()
 
 PACKAGE CONTENTS
     _compiled
@@ -213,6 +326,7 @@ PACKAGE CONTENTS
 CLASSES
     builtins.object
         XSPECModel
+		XSPECParameter
     enum.Enum(builtins.object)
         LanguageStyle
         ModelType
@@ -280,7 +394,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.18
+    0.0.19
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py

@@ -1,5 +1,20 @@
 # Changes in xspec-models-cxc
 
+## 0.0.19
+
+We can now find out about the parameter values for a model:
+
+```
+>>> import xspec_models_cxc as x
+>>> m = x.info('apec')
+>>> m.name
+'apec'
+>>> m.modeltype
+<ModelType.Add: 1>
+>>> [(p.name, p.default, p.units) for p in m.parameters]
+[('kT', 1.0, 'keV'), ('Abundanc', 1.0, None), ('Redshift', 0.0, None)]
+```
+
 ## 0.0.18
 
 Provide the first access to the model.dat-derived values from

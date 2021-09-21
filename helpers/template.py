@@ -176,31 +176,22 @@ def apply_python(models, template, outfile):
     """Convert the template for the Python code."""
 
     def to_model(mtype):
-        if mtype == 'Add':
-            return 'ModelType.Add'
-
-        if mtype == 'Mul':
-            return 'ModelType.Mul'
-
-        if mtype == 'Con':
-            return 'ModelType.Con'
-
-        raise ValueError(f'Unsupported model type: {mtype}')
+        return {'Add': 'ModelType.Add',
+                'Mul': 'ModelType.Mul',
+                'Con': 'ModelType.Con' }[mtype]
 
     def to_lang(langtype):
-        if langtype == 'C++ style':
-            return 'LanguageStyle.CppStyle8'
+        return {'C++ style': 'LanguageStyle.CppStyle8',
+                'C style': 'LanguageStyle.CStyle8',
+                'Fortran - single precision': 'LanguageStyle.F77Style4',
+                'Fortran - double precision': 'LanguageStyle.F77Style8'}[langtype]
 
-        if langtype == 'C style':
-            return 'LanguageStyle.CStyle8'
-
-        if langtype == 'Fortran - single precision':
-            return 'LanguageStyle.F77Style4'
-
-        if langtype == 'Fortran - double precision':
-            return 'LanguageStyle.F77Style8'
-
-        raise ValueError(f'Unsupported language type: {langtype}')
+    def to_ptype(ptype):
+        # We don't support periodic yet
+        return {'Basic': 'ParamType.Default',
+                'Switch': 'ParamType.Switch',
+                'Scale': 'ParamType.Scale',
+                '?': 'ParamType.Periodic'}[ptype]
 
     mstrs = []
     for model in models:
@@ -212,6 +203,36 @@ def apply_python(models, template, outfile):
                f"language={lang}",
                f"elo={model.elo}",
                f"ehi={model.ehi}"]
+
+        pars = []
+        for p in model.pars:
+            ps = [f"XSPECParameter(paramtype={to_ptype(p.paramtype)}"]
+            ps.append(f"name='{p.name}'")
+            ps.append(f"default={p.default}")
+            if p.units is not None:
+                ps.append(f"units='{p.units}'")
+
+            try:
+                if p.frozen:
+                    ps.append("frozen=True")
+            except AttributeError:
+                # Assume that if there's no frozen attribute it is
+                # always frozen
+                ps.append("frozen=True")
+
+            for t in ['soft', 'hard']:
+                for r in ['min', 'max']:
+                    attr = getattr(p, f'{t}{r}')
+                    if attr is not None:
+                        ps.append(f"{t}{r}={attr}")
+
+            if p.delta is not None:
+                ps.append(f"delta={p.delta}")
+
+            pars.append(', '.join(ps) + ')')
+
+        pars = ', '.join(pars)
+        out.append(f"parameters=[{pars}]")
 
         if len(model.flags) > 0 and model.flags[0] > 0:
             out.append("use_errors=True")
