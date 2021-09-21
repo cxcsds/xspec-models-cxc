@@ -1,5 +1,15 @@
 # Changes in xspec-models-cxc
 
+## 0.0.18
+
+Provide the first access to the model.dat-derived values from
+Python. There are two routines:
+
+  info(name)
+  list_models(modeltype=None, language=None)
+
+Note that this does not provide access to the parameter information.
+
 ## 0.0.17
 
 Reworked the code layout so that the compiled is now available as

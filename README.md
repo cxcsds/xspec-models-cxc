@@ -168,6 +168,29 @@ and the plots are
 
 ![convolution model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example-convolution.png "convolution model")
 
+## What models are supported?
+
+The `info()` and `list_models()` routines give information on the
+supported models (but, in 0.0.18, they do not include parameter
+information, which is a bit of a shame).
+
+```
+>>> import xspec_models_cxc as x
+>>> x.list_models()
+['SSS_ice', 'TBabs', 'TBfeo', 'TBgas', 'TBgrain', 'TBpcf', ...
+... 'zvphabs', 'zwabs', 'zwndabs', 'zxipab', 'zxipcf']
+>>> x.list_models(modeltype=x.ModelType.Con)
+['cflux', 'clumin', 'cpflux', 'gsmooth', 'ireflect', 'kdblur', 'kdblur2', 'kerrconv', 'kyconv', 'lsmooth', 'partcov', 'rdblur', 'reflect', 'rfxconv', 'rgsxsrc', 'simpl', 'thcomp', 'vashift', 'vmshift', 'xilconv', 'zashift', 'zmshift']
+>>> x.info('apec')
+XSPECModel(modeltype=<ModelType.Add: 1>, name='apec', funcname='apec', language=<LanguageStyle.CppStyle8: 1>, elo=0.0, ehi=1e+20, use_errors=False, can_cache=True)
+>>> x.info('TBabs')
+XSPECModel(modeltype=<ModelType.Mul: 2>, name='TBabs', funcname='tbabs', language=<LanguageStyle.CppStyle8: 1>, elo=0.03, ehi=1e+20, use_errors=False, can_cache=True)
+>>> x.info('zxipab')
+XSPECModel(modeltype=<ModelType.Mul: 2>, name='zxipab', funcname='zxipab', language=<LanguageStyle.F77Style4: 3>, elo=0.01, ehi=1e+20, use_errors=False, can_cache=True)
+>>> x.info('smaug')
+XSPECModel(modeltype=<ModelType.Add: 1>, name='smaug', funcname='xsmaug', language=<LanguageStyle.CStyle8: 2>, elo=0.0, ehi=1e+20, use_errors=False, can_cache=False)
+```
+
 ## Examples
 
 The XSPEC model library is automatically initalized when the first call
@@ -177,80 +200,29 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.17'
+'0.0.18'
 >>> help(x)
-Help on module xspec_models_cxc:
+Help on package xspec_models_cxc:
 
 NAME
-    xspec_models_cxc
+    xspec_models_cxc - Experiment with XSPEC models.
 
-DESCRIPTION
-    Call XSPEC models from Python
-    =============================
+PACKAGE CONTENTS
+    _compiled
 
-    Highly experimental.
+CLASSES
+    builtins.object
+        XSPECModel
+    enum.Enum(builtins.object)
+        LanguageStyle
+        ModelType
 
-    The XSPEC model library is automatically initialized on the first call
-    to one of the functions or models.
-
-    Support routines
-    ----------------
-    get_version - The version of the XSPEC model library.
-    chatter - Get or set the XSPEC chatter level.
-    abundance - Get or set the abundance-table setting.
-    cross_section - Get or set the cross-section-table setting.
-    elementAbundance - Return the abundance for an element by name or atomic number.
-    elementName - Get the name of an element given the atomic number.
-    cosmology - Get or set the cosmology (H0, q0, lambda0) settings.
-    clearXFLT, getNumberXFLT, getXFLT, niXFLT, setXFLT - XFLT keyword handlnig.
-    clearModelString, getModelString, setModelString - model string database.
-    clearDb, getDb, setDb - keyword database.
-
-    Additive models
-    ---------------
-    agauss - 2 parameters.
-    agnsed - 15 parameters.
-    agnslim - 14 parameters.
-    apec - 3 parameters.
-    bapec - 4 parameters.
+    class LanguageStyle(enum.Enum)
+     |  LanguageStyle(value, names=None, *, module=None, qualname=None, type=None, start=1)
+     |
+     |  The various ways to define and call XSPEC models.
+     |
 ...
-    zpowerlw - 2 parameters.
-    bwcycl - 12 parameters.
-
-    Multiplicative models
-    ---------------------
-    absori - 6 parameters.
-    acisabs - 8 parameters.
-    constant - 1 parameters.
-    cabs - 1 parameter.
-...
-    zwabs - 2 parameters.
-    zwndabs - 3 parameters.
-
-    Convolution models
-    ------------------
-    kyconv - 12 parameters.
-    cflux - 3 parameters.
-    clumin - 4 parameters.
-    cpflux - 3 parameters.
-    gsmooth - 2 parameters.
-    ireflect - 7 parameters.
-    kdblur - 4 parameters.
-    kdblur2 - 6 parameters.
-    kerrconv - 7 parameters.
-    lsmooth - 2 parameters.
-    partcov - 1 parameter.
-    rdblur - 4 parameters.
-    reflect - 5 parameters.
-    rfxconv - 5 parameters.
-    rgsxsrc - 1 parameter.
-    simpl - 3 parameters.
-    thcomp - 4 parameters.
-    vashift - 1 parameter.
-    vmshift - 1 parameters.
-    xilconv - 6 parameters.
-    zashift - 1 parameter.
-    zmshift - 1 parameter.
 
 FUNCTIONS
     SSS_ice(...) method of builtins.PyCapsule instance
@@ -308,7 +280,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.17
+    0.0.18
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py

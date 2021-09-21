@@ -26,7 +26,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from helpers import template
 
-__version__ = "0.0.17"
+__version__ = "0.0.18"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -42,25 +42,9 @@ modelfile = HEADAS / '../spectral/manager/model.dat'
 modelfile = modelfile.resolve()
 
 out_dir = pathlib.Path('src')
+out_dir.mkdir(exist_ok=True)
+
 info = template.apply(modelfile, out_dir)
-
-# Summarize
-#
-print("###############################################")
-print(f"Number of models:  {len(info['models'])}")
-print(f"   additive:       {len(info['additive'])}")
-print(f"   multiplicative: {len(info['multiplicative'])}")
-print(f"   convolution:    {len(info['convolution'])}")
-print(f"   C++:            {len(info['C++'])}")
-print(f"   C:              {len(info['C'])}")
-print(f"   FORTRAN:        {len(info['f77'])}")
-nskip = len(info['allmodels']) - len(info['models'])
-if nskip > 0:
-    print("")
-    print(f"   Number skipped: {nskip}")
-
-print("###############################################")
-
 
 # It would be nice to query for this from the system,
 # such as with pkg_config.

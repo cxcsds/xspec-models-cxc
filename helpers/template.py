@@ -27,56 +27,8 @@ def replace_term(txt, term, replace):
     return txt[:idx] + replace + txt[idx + len(term):]
 
 
-# At what point does it become worth using a templating system like
-# Jinja2?
-#
-def apply(modelfile, out_dir):
-    """Parse the model.dat file and create the code.
-
-    Parameters
-    ----------
-    modelfile : pathlib.Path
-        The he model.dat file.
-    out_dir : pathlib.Path
-        The directory where to write the output.
-
-    Returns
-    -------
-    models : dict
-        Information on the different model types that were found and
-        the files created.
-
-    Notes
-    -----
-    The templates/xspec.cxx file is used as the template.
-
-    """
-
-    if not modelfile.is_file():
-        sys.stderr.write(f'ERROR: unable to find model.dat file: {modelfile}.\n')
-        sys.exit(1)
-
-    allmodels = parse_xspec_model_description(modelfile)
-    if len(allmodels) == 0:
-        sys.stderr.write(f'ERROR: unable to parse model.fat file: {modelfile}\n')
-        sys.exit(1)
-
-    # Filter to the ones we care about
-    models = [m for m in allmodels if m.modeltype in ['Add', 'Mul', 'Con']]
-    if len(models) == 0:
-        sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
-        sys.exit(1)
-
-    if not out_dir.is_dir():
-        sys.stderr.write(f'ERROR: unable to find output directory: {out_dir}\n')
-        sys.exit(1)
-
-    # Create the code we want to compile
-    #
-    template_dir = pathlib.Path('template')
-    filename = pathlib.Path('xspec.cxx')
-    template = template_dir / filename
-    outfile = out_dir / filename
+def apply_compiled(models, template, outfile):
+    """Convert the template for the compiled code."""
 
     # Ugly information flow here
     addmodels = []
@@ -207,16 +159,153 @@ def apply(modelfile, out_dir):
 
         out = replace_term(out, '@@MODELS@@', '\n'.join(mstrs))
 
-    out_dir.mkdir(exist_ok=True)
     with outfile.open(mode='wt') as ofh:
         ofh.write(out)
 
     return {'outfile': outfile,
             'models': [m.name for m in models],
-            'allmodels': [m.name for m in allmodels],
             'additive': addmodels,
             'multiplicative': mulmodels,
             'convolution': conmodels,
             'C++': cxxmodels,
             'C': cmodels,
             'f77': f77models}
+
+
+def apply_python(models, template, outfile):
+    """Convert the template for the Python code."""
+
+    def to_model(mtype):
+        if mtype == 'Add':
+            return 'ModelType.Add'
+
+        if mtype == 'Mul':
+            return 'ModelType.Mul'
+
+        if mtype == 'Con':
+            return 'ModelType.Con'
+
+        raise ValueError(f'Unsupported model type: {mtype}')
+
+    def to_lang(langtype):
+        if langtype == 'C++ style':
+            return 'LanguageStyle.CppStyle8'
+
+        if langtype == 'C style':
+            return 'LanguageStyle.CStyle8'
+
+        if langtype == 'Fortran - single precision':
+            return 'LanguageStyle.F77Style4'
+
+        if langtype == 'Fortran - double precision':
+            return 'LanguageStyle.F77Style8'
+
+        raise ValueError(f'Unsupported language type: {langtype}')
+
+    mstrs = []
+    for model in models:
+        mtype = to_model(model.modeltype)
+        lang = to_lang(model.language)
+        out = [f"    '{model.name}': XSPECModel(modeltype={mtype}",
+               f"name='{model.name}'",
+               f"funcname='{model.funcname}'",
+               f"language={lang}",
+               f"elo={model.elo}",
+               f"ehi={model.ehi}"]
+
+        if len(model.flags) > 0 and model.flags[0] > 0:
+            out.append("use_errors=True")
+
+        if len(model.flags) > 1 and model.flags[1] > 0:
+            out.append("can_cache=False")
+
+        mstrs.append(', '.join(out) + ')')
+
+    with template.open(mode='rt') as ifh:
+        out = ifh.read()
+
+        out = replace_term(out, '@@PYINFO@@', ',\n'.join(mstrs))
+
+    with outfile.open(mode='wt') as ofh:
+        ofh.write(out)
+
+
+# At what point does it become worth using a templating system like
+# Jinja2?
+#
+def apply(modelfile, out_dir):
+    """Parse the model.dat file and create the code.
+
+    Parameters
+    ----------
+    modelfile : pathlib.Path
+        The he model.dat file.
+    out_dir : pathlib.Path
+        The directory where to write the output.
+
+    Returns
+    -------
+    models : dict
+        Information on the different model types that were found and
+        the files created.
+
+    Notes
+    -----
+    The templates/xspec.cxx file is used as the template.
+
+    """
+
+    if not modelfile.is_file():
+        sys.stderr.write(f'ERROR: unable to find model.dat file: {modelfile}.\n')
+        sys.exit(1)
+
+    allmodels = parse_xspec_model_description(modelfile)
+    if len(allmodels) == 0:
+        sys.stderr.write(f'ERROR: unable to parse model.fat file: {modelfile}\n')
+        sys.exit(1)
+
+    # Filter to the ones we care about
+    models = [m for m in allmodels if m.modeltype in ['Add', 'Mul', 'Con']]
+    if len(models) == 0:
+        sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
+        sys.exit(1)
+
+    if not out_dir.is_dir():
+        sys.stderr.write(f'ERROR: unable to find output directory: {out_dir}\n')
+        sys.exit(1)
+
+    # Create the code we want to compile
+    #
+    template_dir = pathlib.Path('template')
+
+    filename = pathlib.Path('xspec.cxx')
+    template = template_dir / filename
+    outfile = out_dir / filename
+    out_dir.mkdir(exist_ok=True)
+    info = apply_compiled(models, template, outfile)
+
+    filename = pathlib.Path('__init__.py')
+    template = template_dir / filename
+    out_dir = out_dir / 'xspec_models_cxc'
+    outfile = out_dir / filename
+    out_dir.mkdir(exist_ok=True)
+    apply_python(models, template, outfile)
+
+    # Summarize
+    #
+    print("###############################################")
+    print(f"Number of models:  {len(info['models'])}")
+    print(f"   additive:       {len(info['additive'])}")
+    print(f"   multiplicative: {len(info['multiplicative'])}")
+    print(f"   convolution:    {len(info['convolution'])}")
+    print(f"   C++:            {len(info['C++'])}")
+    print(f"   C:              {len(info['C'])}")
+    print(f"   FORTRAN:        {len(info['f77'])}")
+    nskip = len(allmodels) - len(info['models'])
+    if nskip > 0:
+        print("")
+        print(f"   Number skipped: {nskip}")
+
+    print("###############################################")
+
+    return info
