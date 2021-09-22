@@ -30,6 +30,25 @@
 #include <XSFunctions/functionMap.h>
 #include <XSFunctions/funcWrappers.h>
 
+// Needed in XSPEC 12.12.0 as it's not defined in a header.
+//
+// Should we use XSFunctions/tableInterpolate.cxx instead - namely
+//
+// void tableInterpolate(const RealArray& energyArray,
+//                       const RealArray& params,
+//                       string fileName,
+//                       int spectrumNumber,
+//                       RealArray& fluxArray,
+//                       RealArray& fluxErrArray,
+//                       const string& initString,
+//                       const string& tableType,
+//                       const bool readFull);
+//
+extern "C" {
+  void tabint(float* ear, int ne, float* param, int npar, const char* filenm, int ifl,
+	      const char* tabtyp, float* photar, float* photer);
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -377,6 +396,10 @@ clearXFLT, getNumberXFLT, getXFLT, inXFLT, setXFLT - XFLT keyword handlnig.
 clearModelString, getModelString, setModelString - model string database.
 clearDb, getDb, setDb - keyword database.
 
+Table Models
+------------
+tableModel
+
 Additive models
 ---------------
 @@ADDMODELS@@
@@ -627,6 +650,44 @@ Convolution models
 	  [](const string keyword, const double value) { init(); FunctionUtility::loadDbValue(keyword, value); },
 	  "Set the keyword in the database to the given value.",
 	  "keyword"_a, "value"_a);
+
+    // Table-model support
+    //
+    m.def("tableModel",
+	  [](const string filename, const string tableType,
+	     py::array_t<float, py::array::c_style | py::array::forcecast> pars,
+	     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+	     const int spectrumNumber) {
+
+	    py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
+	    if (pbuf.ndim != 1 || ebuf.ndim != 1)
+	      throw pybind11::value_error("pars and energyArray must be 1D");
+
+	    if (ebuf.size < 3)
+	      throw pybind11::value_error("Expected at least 3 bin edges");
+
+	    // Should we force spectrumNumber >= 1?
+
+	    const int nelem = ebuf.size - 1;
+
+	    // Can we easily zero out the arrays?
+	    auto result = py::array_t<float>(nelem);
+	    auto errors = std::vector<float>(nelem);
+
+	    py::buffer_info obuf = result.request();
+
+	    float *pptr = static_cast<float *>(pbuf.ptr);
+	    float *eptr = static_cast<float *>(ebuf.ptr);
+	    float *optr = static_cast<float *>(obuf.ptr);
+
+	    init();
+	    tabint(eptr, nelem, pptr, pbuf.size,
+		   filename.c_str(), spectrumNumber,
+		   tableType.c_str(), optr, errors.data());
+	    return result;
+	  },
+	  "XSPEC table model.",
+	  "table"_a, "table_type"_a, "pars"_a, "energies"_a, "spectrum"_a=1);
 
     // Add the models, auto-generated from the model.dat file.
     //

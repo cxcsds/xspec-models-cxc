@@ -232,6 +232,17 @@ hardmax=20.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, nam
  itype      =     2  units=None  frozen=True  range: 1.0-4.0
 ```
 
+### Table models
+
+New in version 0.0.20 is support for XSPEC table models. This support is
+rather limited as it only allows you toevaluate the table model and does
+not provide any access to the metadata in the model (which determines
+whether it is an atable or mtable model [unfortunately there is no flag
+to say it's an etable model], whether to add a redshift parameter, what
+the parameters are, what the default and parameter ranges are, ...).
+
+Models are evaluated with the `tableModel` function.
+
 ## Examples
 
 The XSPEC model library is automatically initalized when the first call
@@ -241,7 +252,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.19'
+'0.0.20'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -254,7 +265,8 @@ DESCRIPTION
 
     There are three types of symbols in this package:
 
-    1. model functions, such as `apec` and `TBabs`.
+    1. model functions, such as `apec` and `TBabs`, and `tableModel` for
+       table models.
     2. routines that set or get values such as the abundance
        table (`abundance`), cross-section table (`cross_sections`),
        cosmology (`cosmology`), and the chatter level (`chatter`).
@@ -319,6 +331,53 @@ DESCRIPTION
     >>> x.kdblur(energies=egrid, pars=pars_kdblur, model=ymodel)
     >>> plt.plot(emid, ymodel, alpha=0.8, label='Convolved')
     >>> plt.legend()
+
+    XSPEC table models [TableModel]_ are fun to work with, as you
+
+    1. need to read in the file to find out information on the model -
+       such as whether it's atable or mtable (but unfortunately there is
+       no header keyword to determine if it is an etable) - and the
+       parameter names, values, and ranges.
+
+    2. use the file name when evaluating the model along with some of
+       this metadata.
+
+    At the moment this module only supports the second part - calling the
+    models - and it is left to the user to find the other information out.
+
+    In this example the ``RCS.mod`` table model, which has three
+    parameters, does not add a redshift parameter, and is an "atable"
+    model (i.e. additive):
+
+        % dmlist "RCS.mod[cols name, initial]" data,clean
+        #  NAME           INITIAL
+         tau                             1.0
+         beta               0.10000000149012
+         T                  0.10000000149012
+        % dmkeypar xspec-tablemodel-RCS.mod"[primary]" redshift echo+
+        0
+        % dmkeypar "xspec-tablemodel-RCS.mod[primary]" addmodel echo+
+        1
+
+    This can then be used with `tableModel` in a similar manner to the
+    other models, apart from requiring `table` and `table_type` arguments:
+
+    >>> infile = 'RCS.mod'
+    >>> pars = [1, 0.1, 0.1]
+    >>> egrid = np.arange(0.1, 10, 0.01)
+    >>> y = x.tableModel(table=infile, table_type="add", energies=egrid, pars=pars)
+
+    Note that it is very easy to make the table model code crash the
+    system, such as by sending in not enough parameters or settnig a
+    parameter outside its hard limits:
+
+    >>> x.tableModel(infile, "add", pars=[1, 2], energies=egrid)
+    Segmentation fault (core dumped)
+
+    References
+    ----------
+
+    .. [TableModel] https://heasarc.gsfc.nasa.gov/docs/heasarc/ofwg/docs/general/ogip_92_009/ogip_92_009.html
 
 PACKAGE CONTENTS
     _compiled
@@ -391,10 +450,21 @@ FUNCTIONS
         The XSPEC multiplicative zxipcf model (4 parameters); inplace.
 
 DATA
+    List = typing.List
+        A generic version of list.
+
+    Optional = typing.Optional
+        Optional type.
+
+        Optional[X] is equivalent to Union[X, None].
+
+    Sequence = typing.Sequence
+        A generic version of collections.abc.Sequence.
+
     numberElements = 30
 
 VERSION
-    0.0.19
+    0.0.20
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py
@@ -937,3 +1007,29 @@ the lg10Flux parameter:
 >>> (y2[1:-1] * emid_kev).sum() * conv
 9.999904093891366e-13
 ```
+
+### TABLE models
+
+The interface is somewhat "janky" - to use an official term - and relies
+on the user understanding the model metadata. This will be improved upon,
+but for now you need to know
+
+- what type it is ("add", "mul", or "exp" for "atable", "mtable", or "etable")
+- what the parameters are (includng whether redshift is added)
+- what the parameter ranges are
+
+With that, the RCS.mod table model - an additive model with three
+parameters with default values of [1, 0.1, 0.1] and no redshift
+parameter - can be evaluated:
+
+```
+>>> infile = 'RCS.mod'
+>>> mtype = 'add'
+>>> pars = [1, 0.1, 0.1]
+>>> y = x.tableModel(table=infile, table_type=mtype, pars=pars, energies=egrid)
+```
+
+It is **very easy** to crash the interpreter - for example
+
+- if you send in too few parameters
+- if you send in a parameter outside the hard range for that parameter

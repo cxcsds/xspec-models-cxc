@@ -1,5 +1,34 @@
 # Changes in xspec-models-cxc
 
+## 0.0.20
+
+Initial support for XSPEC table models.
+
+There are two parts to using XSPEC table models:
+
+- parsing the file structure to find out about the parameters
+- using the model
+
+We only support the latter at this time.
+
+```
+>>> impoer xspec_models_cxc as x
+>>> infile = 'RCS.mod'
+>>> egrid = np.arange(0.1, 1, 0.1)
+>>> pars = [1, 0.1, 0.1]
+>>> x.tableModel(infile, "add", pars=pars, energies=egrid)
+array([2.9454877 , 2.6992798 , 1.9146949 , 1.1823336 , 0.6685946 ,
+       0.35602048, 0.1817703 , 0.09004311], dtype=float32)
+```
+
+It's very easy to make things go boom - e.g. using the wrong
+number of parameters
+
+```
+>>> x.tableModel(infile, "add", pars=[1, 2], energies=egrid)
+Segmentation fault (core dumped)
+```
+
 ## 0.0.19
 
 We can now find out about the parameter values for a model:
