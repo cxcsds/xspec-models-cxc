@@ -906,10 +906,12 @@ mode     " "       1.0E+00    0.0E+00 0.0E+00  2.0E+00  2.0E+00  -1.0E+00
 itype    " "       2.0E+00    1.0E+00 1.0E+00  4.0E+00  4.0E+00  -1.0E+00
 ```
 
-and when you try to run it the model fails
+and when you try to run it the model fails (note that I use the
+default parameter values apart for `redshift`, which is set to
+something cosmologically interesting):
 
 ```
->>> pars = [1, 1, 0, 0.1, 0.5, 0.1, 0, 0.5, 1, 0.1, 0.5, 0.1, 0, 2e-3, 1, 0, 0.1, 0.01, 10, 2, 1, 2]
+>>> [0.4 if p.name == 'redshift' else p.default for p in x.info('smaug').parameters]
 >>> x.smaug(pars, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
 
 ***XSPEC Error:  in function XSmaug: cannot find XFLTnnnn keyword for inner annulus for spectrum 1
@@ -921,25 +923,38 @@ RuntimeError: Caught an unknown exception!
 
 We make probably make the error slightly nicer.
 
-We can now set the XFLT keywords, but I'm making things up here so
-it's not surprising it still fails:
+Now, we need to set
+
+- cosmology setup
+- the XFLT "inner", "outer", and "width" keywords
+
+The cosmology is not set up by default:
 
 ```
->>> x.setXFLT(1, {'inner': 0, 'outer': 20, 'width': 0})
->>> x.setXFLT(2, {'inner': 20, 'outer': 40, 'width': 0})
+>>> x.cosmology()
+{'H0': 0.0, 'lambda0': 0.0, 'q0': 0.0}
+```
+
+So we change to:
+
+```
+>>> x.cosmology(h0=70, lambda0=0.73, q0=0)
+```
+
+and then set the XFLT keywords (making up these values as it depents
+on the `rcutoff` parameter), but the result isn't quite what I
+was expecting:
+
+```
+>>> x.setXFLT(1, {'inner': 0, 'outer': 0.1, 'width': 360})
+>>> x.setXFLT(2, {'inner': 0.1, 'outer': 0.2, 'width': 360})
 >>> egrid = np.arange(0.1, 7, 0.01)
->>> y1 = x.smaug(pars, egrid, spectrum=2)
-
-***XSPEC Error:  in function XSmaug: for of dataset 2 either the outer ring exceeds the cutoff radius, the outer ring is less
-than or equal to the inner, or the sector width is zero
-
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-RuntimeError: Caught an unknown exception!
+>>> y1 = x.smaug(energies=egrid, pars=pars, spectrum=1)
+Segmentation fault (core dumped)
 ```
 
-(it also fails for `spectrum=1` in this case but I wanted to show that
-the error message respected the spectrum value!)
+I think this is a bug in the `smaug` model and have asked for
+confirmation.
 
 ### CFLUX convolution model (convolution, C++)
 
