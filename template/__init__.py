@@ -130,9 +130,14 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Optional, Sequence
 
-from ._compiled import *
+try:
+    from ._compiled import *
+    __version__ = _compiled.__version__
+except ImportError:
+    import logging
+    logging.getLogger(__name__).warn("Unable to import compiled XSPEC models")
 
-__version__ = _compiled.__version__
+    __version__ = "none"
 
 
 class ModelType(Enum):

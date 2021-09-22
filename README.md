@@ -252,7 +252,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.20'
+'0.0.21'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -464,7 +464,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.20
+    0.0.21
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py

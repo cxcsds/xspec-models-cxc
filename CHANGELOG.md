@@ -1,5 +1,18 @@
 # Changes in xspec-models-cxc
 
+## 0.0.21
+
+You can now import xspec_models_cxc even if the XSPEC libraries can't
+be found (e.g. LD_LIBRARY_PATH is not set):
+
+```
+>>> import xspec_models_cxc
+Unable to import compiled XSPEC models
+```
+
+You can still access the model data - i.e. with `info` and
+`list_models`.
+
 ## 0.0.20
 
 Initial support for XSPEC table models.
