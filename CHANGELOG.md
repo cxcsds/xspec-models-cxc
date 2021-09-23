@@ -1,5 +1,14 @@
 # Changes in xspec-models-cxc
 
+## 0.0.22
+
+The tableModel function now takes an optional model argument.
+
+Note that model arguments have to have exactly the right data type -
+so for tableModel that is numpy.float32 - otherwise they won't get
+updated in place. It really should error out if the types don't match.
+Or we drop the model argument support.
+
 ## 0.0.21
 
 You can now import xspec_models_cxc even if the XSPEC libraries can't

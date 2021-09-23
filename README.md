@@ -252,7 +252,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.21'
+'0.0.22'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -464,7 +464,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.21
+    0.0.22
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py
@@ -1048,3 +1048,20 @@ It is **very easy** to crash the interpreter - for example
 
 - if you send in too few parameters
 - if you send in a parameter outside the hard range for that parameter
+
+```
+>>> help(x.tableModel)
+Help on built-in function tableModel in module xspec_models_cxc._compiled:
+
+tableModel(...) method of builtins.PyCapsule instance
+    tableModel(*args, **kwargs)
+    Overloaded function.
+
+    1. tableModel(table: str, table_type: str, pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+
+    XSPEC table model.
+
+    2. tableModel(table: str, table_type: str, pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], model: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+
+    XSPEC table model; inplace.
+```

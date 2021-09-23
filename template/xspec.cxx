@@ -689,6 +689,45 @@ Convolution models
 	  "XSPEC table model.",
 	  "table"_a, "table_type"_a, "pars"_a, "energies"_a, "spectrum"_a=1);
 
+    m.def("tableModel",
+	  [](const string filename, const string tableType,
+	     py::array_t<float, py::array::c_style | py::array::forcecast> pars,
+	     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+	     py::array_t<float, py::array::c_style | py::array::forcecast> output,
+	     const int spectrumNumber) {
+
+	    py::buffer_info pbuf = pars.request(),
+	      ebuf = energyArray.request(),
+	      obuf = output.request();
+	    if (pbuf.ndim != 1 || ebuf.ndim != 1 || obuf.ndim != 1)
+	      throw pybind11::value_error("pars, energyArray, and model must be 1D");
+
+	    if (ebuf.size < 3)
+	      throw pybind11::value_error("Expected at least 3 bin edges");
+
+	    validate_grid_size(ebuf.size, obuf.size);
+
+	    // Should we force spectrumNumber >= 1?
+
+	    const int nelem = ebuf.size - 1;
+
+	    // Can we easily zero out the arrays?
+	    auto errors = std::vector<float>(nelem);
+
+	    float *pptr = static_cast<float *>(pbuf.ptr);
+	    float *eptr = static_cast<float *>(ebuf.ptr);
+	    float *optr = static_cast<float *>(obuf.ptr);
+
+	    init();
+	    tabint(eptr, nelem, pptr, pbuf.size,
+		   filename.c_str(), spectrumNumber,
+		   tableType.c_str(), optr, errors.data());
+	    return output;
+	  },
+	  "XSPEC table model; inplace.",
+	  "table"_a, "table_type"_a, "pars"_a, "energies"_a, "model"_a, "spectrum"_a=1,
+	  py::return_value_policy::reference);
+
     // Add the models, auto-generated from the model.dat file.
     //
 @@MODELS@@
