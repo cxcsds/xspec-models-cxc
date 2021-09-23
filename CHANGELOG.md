@@ -1,5 +1,9 @@
 # Changes in xspec-models-cxc
 
+## 0.0.23
+
+First version of a test suite.
+
 ## 0.0.22
 
 The tableModel function now takes an optional model argument.

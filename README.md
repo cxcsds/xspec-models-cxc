@@ -252,7 +252,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.22'
+'0.0.23'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -319,12 +319,15 @@ DESCRIPTION
     that the model requires the data to be convolved to be sent in as the
     `model` argument, and that this array is changed by the routine (in
     the same way that the out parameter works for NumPy ufunc
-    routines). The convolution models do also return the value so we could
+    routines). The convolution models also return the value so we could
     have said
 
         out = x.kdblur(ebergies=.., pars=.., model=ymodel.copy())
 
-    which would keep the original model values.
+    which would keep the original model values (there is actualy a subtly
+    in that the `model` argument must be sent the correct datatype for the
+    convolution model - so either `np.float64` or `np.float32` - otherwise
+    it will not be changed).
 
     >>> kdblur = x.info('kdblur')
     >>> pars_kdblur = [p.default for p in kdblur.parameters]
@@ -464,7 +467,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.22
+    0.0.23
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py
@@ -989,6 +992,23 @@ Note that convolution models **always** over-write the `model`
 argument - so if we had used `model=y1` rather than `model=y1.copy()`
 then `y1` would have been changed (which is normally okay, but in this
 example I wanted to compare the input and output arrays).
+
+There is a subtly to using the `model` argument: it must have the same
+date type as the convolution model expects - which can be found by
+checking `help(x.<convolution model>)` or `x.info(<convolution
+model)>.language` - otherwise it will not be updated. In this case
+`cflux` uses `float64` so it would work out:
+
+```
+>>> egrid.dtype
+dtype('float64')
+>>> y1.dtype
+dtype('float64')
+>>> y2.dtype
+dtype('float64')
+>>> x.info('cflux').language
+<LanguageStyle.CppStyle8: 1>
+```
 
 Now, we need to sum up `y2` over the range 0.5 to 10 keV,
 which thanks to the grid I chose, is all-but the first and

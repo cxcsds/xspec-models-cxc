@@ -64,12 +64,15 @@ We can include a convolution component - in this case the kdblur model
 that the model requires the data to be convolved to be sent in as the
 `model` argument, and that this array is changed by the routine (in
 the same way that the out parameter works for NumPy ufunc
-routines). The convolution models do also return the value so we could
+routines). The convolution models also return the value so we could
 have said
 
     out = x.kdblur(ebergies=.., pars=.., model=ymodel.copy())
 
-which would keep the original model values.
+which would keep the original model values (there is actualy a subtly
+in that the `model` argument must be sent the correct datatype for the
+convolution model - so either `np.float64` or `np.float32` - otherwise
+it will not be changed).
 
 >>> kdblur = x.info('kdblur')
 >>> pars_kdblur = [p.default for p in kdblur.parameters]

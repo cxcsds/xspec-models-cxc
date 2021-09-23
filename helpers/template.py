@@ -62,7 +62,7 @@ def apply_compiled(models, template, outfile):
             out += f'_C<C_{model.funcname}'
             cxxmodels.append(model.funcname)
         elif model.language == 'C style':
-            out += f'_C<{model.funcname}'
+            out += f'_C<{model.funcname}'  # should this be 'c_{model.funcname}' (not for compmag...)?
             cmodels.append(model.funcname)
         else:
             assert False, (model.name, model.funcname, model.language)
