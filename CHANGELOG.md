@@ -1,5 +1,15 @@
 # Changes in xspec-models-cxc
 
+## 0.0.24
+
+Support direct access to models via the C++ RealArray type. The C++
+models now have a `<name>_` variant which accepts
+`xspec_models_cxc.RealArray` arguments rather than NumPy ones.  So far
+it does not seem to make things any faster, but more experimentation
+is needed.
+
+The convolution models have not been updated to use this interface.
+
 ## 0.0.23
 
 First version of a test suite.

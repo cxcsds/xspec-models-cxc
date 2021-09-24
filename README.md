@@ -252,7 +252,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.23'
+'0.0.24'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -452,6 +452,11 @@ FUNCTIONS
 
         The XSPEC multiplicative zxipcf model (4 parameters); inplace.
 
+    zxipcf_(...) method of builtins.PyCapsule instance
+        zxipcf_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
+
+        The XSPEC multiplicative zxipcf model (4 parameters); RealArray, inplace.
+
 DATA
     List = typing.List
         A generic version of list.
@@ -467,7 +472,7 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.23
+    0.0.24
 
 FILE
     /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py
@@ -1085,3 +1090,185 @@ tableModel(...) method of builtins.PyCapsule instance
 
     XSPEC table model; inplace.
 ```
+
+# Directly using the RealArray interface
+
+Version 0.0.24 allows us to "directly" use the C++ interface, at the
+expense of using the x.RealArray type rather than NumPy arrays. The
+following models
+
+```
+>>> x.list_models(language=x.LanguageStyle.CppStyle8)
+['TBabs', 'TBfeo', 'TBgas', 'TBgrain', 'TBpcf', 'TBrel', 'TBvarabs',
+'absori', 'acisabs', 'agauss', 'apec', 'bapec', 'bexrav', 'bexriv',
+...
+'xscat', 'zTBabs', 'zagauss', 'zashift', 'zbknpower', 'zcutoffpl',
+'zgauss', 'zkerrbb', 'zlogpar', 'zmshift', 'zpowerlw', 'zxipcf']
+```
+
+all have a "_" variant such as
+
+```
+>>> help(x.TBabs_)
+Help on built-in function TBabs_ in module xspec_models_cxc._compiled:
+
+TBabs_(...) method of builtins.PyCapsule instance
+    TBabs_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
+
+    The XSPEC multiplicative TBabs model (1 parameter); RealArray, inplace.
+```
+
+which use this interface. The `x.RealArray` type
+
+```
+>>> help(x.RealArray)
+Help on class RealArray in module xspec_models_cxc._compiled:
+
+class RealArray(pybind11_builtins.pybind11_object)
+ |  Method resolution order:
+ |      RealArray
+ |      pybind11_builtins.pybind11_object
+ |      builtins.object
+ |
+ |  Methods defined here:
+ |
+ |  __getitem__(...)
+ |      __getitem__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> float
+ |
+ |  __init__(...)
+ |      __init__(*args, **kwargs)
+ |      Overloaded function.
+ |
+ |      1. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> None
+ |
+ |      Create an array of n zeros.
+ |
+ |      2. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: numpy.ndarray[numpy.float64]) -> None
+ |
+ |      Copy the data into an array.
+ |
+...
+```
+
+will convert a one-dimensional sequence into something that can be
+sent to these routines (or, when given a non-negative integer,
+willreturn an array of 0's of that length):
+
+```
+>>> pars = x.RealArray([p.default for p in x.info('TBabs').parameters])
+>>> egrid = x.RealArray(np.arange(0.1, 1, 0.1))
+>>> out = x.RealArray(len(egrid) - 1)
+>>> y = x.TBabs_(energies=egrid, pars=pars, out=out)
+tbvabs Version 2.3
+Cosmic absorption with grains and H2, modified from
+Wilms, Allen, & McCray, 2000, ApJ 542, 914-924
+Questions: Joern Wilms
+joern.wilms@sternwarte.uni-erlangen.de
+joern.wilms@fau.de
+
+http://pulsar.sternwarte.uni-erlangen.de/wilms/research/tbabs/
+
+PLEASE NOTICE:
+To get the model described by the above paper
+you will also have to set the abundances:
+   abund wilm
+
+Note that this routine ignores the current cross section setting
+as it always HAS to use the Verner cross sections as a baseline.
+>>> y is out
+True
+>>> y
+[2.3158e-154, 2.41183e-26, 5.47728e-10, 4.24854e-05, 0.000648813, 0.00195077, 0.0112892, 0.0261219]
+```
+
+Note that the `out` argument is changed, as well as being returned
+(in the same way it works for the inplace versions of this).
+
+This version could have been overloaded onto the model name but I
+wanted to make it easier to see if things like the symbol overloading
+make any significant difference to the runtime of a model. Switching
+to IPython to take advantage of `%timeit`:
+
+```
+In [1]: import numpy as np
+
+In [2]: import xspec_models_cxc as x
+
+In [3]: pars1 = [p.default for p in x.info('bvapec').parameters]
+
+In [4]: pars2 = x.RealArray(pars1)
+
+In [5]: egrid1 = np.arange(0.1, 11, 0.001)
+
+In [6]: egrid2 = x.RealArray(egrid1)
+
+In [7]: y1 = x.bvapec(energies=egrid1, pars=pars1)
+Reading APEC data from 3.0.9
+
+
+In [8]: out2 = x.RealArray(len(egrid2) - 1)
+
+In [9]: y2 = x.bvapec_(energies=egrid2, pars=pars2, out=out2)
+
+In [10]: (y1 == y2).all()
+Out[10]: True
+
+In [11]: %timeit y1 = x.bvapec(energies=egrid1, pars=pars1)
+6.85 ms ± 39.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+In [12]: %timeit y2 = x.bvapec_(energies=egrid2, pars=pars2, out=out2)
+7.13 ms ± 26.3 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+```
+
+So, for this simple case it doesn't seem worth usnig the `RealArray`
+versino (but perhaps not returning the array and other changes could
+alter this).
+
+# Convenience versus speed
+
+One question is how much time is spent in marshallnig data to and from
+the compiled code? One point of view is "the ability to evaluate a model
+from Python is worth the cost", but I'd like to see what we can do to
+mitigate this cost. There are various avenues worth persuing, and this
+module does some of the following:
+
+- handle the model evaluation completely in C++ (that is, we encode an
+  AST for expressions like
+
+    "phabs * (powerlaw + apec + gaussian + gaussian)"
+
+  and evalaute the AST in C++).
+
+  I'm interested in this, but haven't got around to working on it yet,
+  and there are issues in how we send in the parameters: see
+  https://github.com/cxcsds/xspec-models-cxc/issues/12
+
+- the current Sherpa-inspired interface creates the output array each
+  time we call the model, leading to a lot of memory churn. Perhaps
+  we can re-use arrays rather than re-creating them.
+
+  Many of the models have an "inplace" variant which has the out
+  argument which supports this. At the moment I haven't seen any
+  evidence of this making model evaluation faster, but perhaps it
+  needs to be run through a typical "fit" where we may see benefits
+  from reduced memory overhead.
+
+  Notes:
+
+  - The convolution models only support the inplace varsion.
+  - Use of the out argument is easy to mess up - see
+    https://github.com/cxcsds/xspec-models-cxc/issues/14
+
+- the different XSPEC models have different "preferred" interfaces
+  (FORTRAN, C, or C++) and  using the correct one should reduce the
+  run-time of the model.
+
+  Initial tests suggest that the conversion cost is not a significant
+  part of the run-time cost of a model, but I can't guarantee it.
+
+  Note that we currently bind to the correct versions for FORTRAN
+  (single precision) and C models, but the C++ models (which, in
+  XSPEC 12.12.0 is 134 of the 231 models we support) are handled
+  using the C interface. To see if this is a problem I have added
+  (in version 0.0.24) the RealArray interface discussed above,
+  but it doesn't seem to make much difference.

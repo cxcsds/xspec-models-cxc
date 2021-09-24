@@ -49,6 +49,10 @@ extern "C" {
 	      const char* tabtyp, float* photar, float* photer);
 }
 
+// Allow access to the RealArray typedef.
+//
+PYBIND11_MAKE_OPAQUE(RealArray);
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -141,6 +145,31 @@ void validate_grid_size(const int energySize, const int modelSize) {
       << "energies has " << energySize << " elements and "
       << "model has " << modelSize << " elements";
   throw pybind11::value_error(err.str());
+}
+
+
+template <XSCCall model, int NumPars>
+RealArray& wrapper_inplace_CXX(const RealArray pars,
+			      const RealArray energyArray,
+			      RealArray &output,
+			      const int spectrumNumber,
+			      const string initStr) {
+
+  validate_par_size(NumPars, pars.size());
+
+  if (energyArray.size() < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  validate_grid_size(energyArray.size(), output.size());
+
+  // Should we force spectrumNumber >= 1?
+  // We shouldn't be able to send in an invalid initStr so do not bother checking.
+
+  auto errors = RealArray(output.size());
+
+  init();
+  model(energyArray, pars, spectrumNumber, output, errors, initStr.c_str());
+  return output;
 }
 
 
@@ -366,7 +395,6 @@ py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::arr
   return inModel;
 }
 
-
 PYBIND11_MODULE(_compiled, m) {
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
@@ -413,6 +441,66 @@ Convolution models
 @@CONMODELS@@
 
 )doc";
+
+    // Access RealArray - unfortunately there's no
+    // py::bind_valarray template in pybind/stl_bind.c
+    //
+    py::class_<RealArray>(m, "RealArray")
+
+      .def(py::init([](const std::size_t n) {
+	return RealArray(n);
+      }), "Create an array of n zeros.")
+
+      .def(py::init([](py::array_t<Real, py::array::c_style | py::array::forcecast> &values) {
+
+	py::buffer_info buf = values.request();
+	if (buf.ndim != 1)
+	  throw pybind11::value_error("values must be 1D");
+
+	double *ptr = static_cast<Real *>(buf.ptr);
+	return RealArray(ptr, buf.size);
+      }), "Copy the data into an array.")
+
+      .def("__len__", &RealArray::size)
+      .def("__iter__", [](RealArray &v) {
+	return py::make_iterator(std::begin(v), std::end(v));
+      }, py::keep_alive<0, 1>()) // Keep vector alive while iterator is used
+
+      .def("__repr__", [](const RealArray &v) {
+	std::ostringstream s;
+	s << '[';
+	for (std::size_t i=0; i < v.size(); ++i) {
+	  s << v[i];
+	  if (i != v.size() - 1)
+	    s << ", ";
+	}
+	s << ']';
+	return s.str();
+      }, "Display the array contents.")
+
+      // I tried to support slice access for get and set but this
+      // lead to boomtown (segfault-a-plenty) so, as it's not really
+      // needed. I didn't explore any further.
+      //
+      .def("__getitem__", [](const RealArray &v, int i) {
+	const int s = static_cast<int>(v.size());
+	if (i < 0)
+	  i += s;
+	if (i < 0 || i >= s)
+	  throw py::index_error();
+	return v[i];
+      })
+
+      .def("__setitem__", [](RealArray &v, int i, const Real &value) {
+	const int s = static_cast<int>(v.size());
+	if (i < 0)
+	  i += s;
+	if (i < 0 || i >= s)
+	  throw py::index_error();
+	v[i] = value;
+      })
+
+      ;
 
     // Access to the library functionality. The string returned
     // by this routine is created on-the-fly and so I think it's

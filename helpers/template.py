@@ -85,6 +85,21 @@ def apply_compiled(models, template, outfile):
         out += ');'
         return out
 
+    def wrapmodel_cxx(model, npars, text):
+        """Make the C++ version available as name_"""
+
+        if model.language != 'C++ style':
+            return ''
+
+        out = '\n'
+        out += f'    m.def("{model.name}_", wrapper_inplace_CXX<'
+        out += f'{model.funcname}, {npars}>, "{text}",'
+        out += '"pars"_a,"energies"_a,"out"_a,"spectrum"_a=1,'
+        out += '"initStr"_a=""'
+        out += ',py::return_value_policy::reference'
+        out += ');'
+        return out
+
     def wrapmodel_add(model, npars):
         """What is the m.def line for this additive model?"""
 
@@ -96,6 +111,9 @@ def apply_compiled(models, template, outfile):
         out += wrapmodel_basic(model, npars, 'wrapper_inplace',
                                f'The XSPEC additive {model.name} model ({get_npars(npars)}); inplace.',
                                inplace=True)
+
+        out += wrapmodel_cxx(model, npars,
+                             f"The XSPEC additive {model.name} model ({get_npars(npars)}); RealArray, inplace.")
 
         return out
 
@@ -110,6 +128,9 @@ def apply_compiled(models, template, outfile):
         out += wrapmodel_basic(model, npars, 'wrapper_inplace',
                                f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}); inplace.',
                                inplace=True)
+
+        out += wrapmodel_cxx(model, npars,
+                             f"The XSPEC multiplicative {model.name} model ({get_npars(npars)}); RealArray, inplace.")
 
         return out
 
