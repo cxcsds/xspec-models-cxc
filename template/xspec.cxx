@@ -609,7 +609,7 @@ Convolution models
 	  []() {
 	    init();
 	    std::map<std::string, float> answer;
-	    answer["H0"] = FunctionUtility::getH0();
+	    answer["h0"] = FunctionUtility::getH0();
 	    answer["q0"] = FunctionUtility::getq0();
 	    answer["lambda0"] = FunctionUtility::getlambda0();
 	    return answer;

@@ -71,6 +71,12 @@ def test_elementAbundance(z, value):
     assert x.elementAbundance(x.elementName(z)) == pytest.approx(value)
 
 
+def test_cosmo_get():
+    """Check the values we set above"""
+    ans = x.cosmology()
+    assert ans == pytest.approx({'h0': 70, 'lambda0': 0.73, 'q0': 0.0})
+
+
 def test_has_wabs_info():
     """Check wabs.
 

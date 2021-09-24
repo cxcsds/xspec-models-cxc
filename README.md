@@ -940,7 +940,7 @@ The cosmology is not set up by default:
 
 ```
 >>> x.cosmology()
-{'H0': 0.0, 'lambda0': 0.0, 'q0': 0.0}
+{'h0': 0.0, 'lambda0': 0.0, 'q0': 0.0}
 ```
 
 So we change to:
