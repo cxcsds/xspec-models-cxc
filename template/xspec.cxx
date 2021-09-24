@@ -20,7 +20,6 @@
 #include <xsTypes.h>
 #include <XSFunctions/Utilities/funcType.h>  // xsccCall and the like
 
-#include <XSFunctions/Utilities/xsFortran.h>  // needed for FNINIT - anything else?
 #include <XSFunctions/Utilities/FunctionUtility.h>
 #include <XSUtil/Utils/XSutility.h>
 
@@ -29,6 +28,10 @@
 //
 #include <XSFunctions/functionMap.h>
 #include <XSFunctions/funcWrappers.h>
+
+// templates for binding the models
+//
+#include "xspec_models_cxc.hh"
 
 // Needed in XSPEC 12.12.0 as it's not defined in a header.
 //
@@ -55,345 +58,6 @@ PYBIND11_MAKE_OPAQUE(RealArray);
 
 namespace py = pybind11;
 using namespace pybind11::literals;
-
-// Initialize the XSPEC interface. We only want to do this once, and
-// we want to be lazy - i.e. we don't want this done when the module
-// is loaded (this is mainly a requirement from Sherpa and could be
-// removed).
-//
-// Can we make this accessible to other users (e.g. for people who
-// want to bind to user models?).
-//
-const void init() {
-  static bool ran = false;
-  if (ran) { return; }
-
-  // A common problem case
-  if (!getenv("HEADAS"))
-    throw std::runtime_error("The HEADAS environment variable is not set!");
-
-  // FNINIT is a bit chatty, so hide the stdout buffer for this call.
-  // This is based on code from Sherpa but has been simplified.
-  //
-  std::ostringstream local;
-  auto cout_buff = std::cout.rdbuf();
-  std::cout.rdbuf(local.rdbuf());
-
-  try {
-
-    // Can this fail?
-    FNINIT();
-
-  } catch(...) {
-
-    std::cout.rdbuf(cout_buff);
-    throw std::runtime_error("Unable to initialize XSPEC model library\n" + local.str());
-  }
-
-  // Get back original std::cout
-  std::cout.rdbuf(cout_buff);
-
-  ran = true;
-}
-
-
-// The FORTRAN interface looks like
-//
-//   void agnsed_(float* ear, int* ne, float* param, int* ifl, float* photar, float* photer);
-//
-// although xsf77Call seems to have the integer arguments passed
-// directly rather than as a poniter.
-//
-// The C_xxx interface looks like
-//
-//   void C_apec(const double* energy, int nFlux, const double* params,
-//        int spectrumNumber, double* flux, double* fluxError,
-//        const char* initStr);
-//
-// The CXX_xxx interface is
-//
-//   void CXX_apec(const RealArray& energyArray, const RealArray& params,
-//        int spectrumNumber, RealArray& fluxArray, RealArray& fluxErrArray,
-//        const string& initString);
-//
-// where RealArray is defined in xsTypes.h as
-//
-//   typedef double Real;
-//   typedef std::valarray<Real> RealArray;
-//
-// For the moment we just wrap the C_xxx interface rather than CXX_xxx.
-//
-
-// Check the number of parameters
-void validate_par_size(const int NumPars, const int got) {
-  if (NumPars == got)
-    return;
-
-  std::ostringstream err;
-  err << "Expected " << NumPars << " parameters but sent " << got;
-  throw std::runtime_error(err.str());
-}
-
-// Provide a useful error message if the sizes don't match
-void validate_grid_size(const int energySize, const int modelSize) {
-
-  if (energySize == modelSize + 1)
-    return;
-
-  std::ostringstream err;
-  err << "Energy grid size must be 1 more than model: "
-      << "energies has " << energySize << " elements and "
-      << "model has " << modelSize << " elements";
-  throw pybind11::value_error(err.str());
-}
-
-
-template <XSCCall model, int NumPars>
-RealArray& wrapper_inplace_CXX(const RealArray pars,
-			      const RealArray energyArray,
-			      RealArray &output,
-			      const int spectrumNumber,
-			      const string initStr) {
-
-  validate_par_size(NumPars, pars.size());
-
-  if (energyArray.size() < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  validate_grid_size(energyArray.size(), output.size());
-
-  // Should we force spectrumNumber >= 1?
-  // We shouldn't be able to send in an invalid initStr so do not bother checking.
-
-  auto errors = RealArray(output.size());
-
-  init();
-  model(energyArray, pars, spectrumNumber, output, errors, initStr.c_str());
-  return output;
-}
-
-
-template <xsccCall model, int NumPars>
-py::array_t<Real> wrapper_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
-			    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
-			    const int spectrumNumber,
-			    const string initStr) {
-
-  py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1)
-    throw pybind11::value_error("pars and energyArray must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  // Should we force spectrumNumber >= 1?
-  // We shouldn't be able to send in an invalid initStr so do not bother checking.
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto result = py::array_t<Real>(nelem);
-  auto errors = std::vector<Real>(nelem);
-
-  py::buffer_info obuf = result.request();
-
-  double *pptr = static_cast<Real *>(pbuf.ptr);
-  double *eptr = static_cast<Real *>(ebuf.ptr);
-  double *optr = static_cast<Real *>(obuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
-  return result;
-}
-
-
-// I believe this shoud be marked py::return_value_policy::reference
-//
-template <xsccCall model, int NumPars>
-py::array_t<Real> wrapper_inplace_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
-				    py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
-				    py::array_t<Real, py::array::c_style | py::array::forcecast> output,
-				    const int spectrumNumber,
-				    const string initStr) {
-
-  py::buffer_info pbuf = pars.request(),
-    ebuf = energyArray.request(),
-    obuf = output.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1|| obuf.ndim != 1)
-    throw pybind11::value_error("pars, energyArray, and model must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  validate_grid_size(ebuf.size, obuf.size);
-
-  // Should we force spectrumNumber >= 1?
-  // We shouldn't be able to send in an invalid initStr so do not bother checking.
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto errors = std::vector<Real>(nelem);
-
-  double *pptr = static_cast<Real *>(pbuf.ptr);
-  double *eptr = static_cast<Real *>(ebuf.ptr);
-  double *optr = static_cast<Real *>(obuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data(), initStr.c_str());
-  return output;
-}
-
-
-template <xsf77Call model, int NumPars>
-py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
-			     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
-			     const int spectrumNumber) {
-
-  py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1)
-    throw pybind11::value_error("pars and energyArray must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto result = py::array_t<float>(nelem);
-  auto errors = std::vector<float>(nelem);
-
-  py::buffer_info obuf = result.request();
-
-  float *pptr = static_cast<float *>(pbuf.ptr);
-  float *eptr = static_cast<float *>(ebuf.ptr);
-  float *optr = static_cast<float *>(obuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
-  return result;
-}
-
-
-// I believe this shoud be marked py::return_value_policy::reference
-//
-template <xsf77Call model, int NumPars>
-py::array_t<float> wrapper_inplace_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
-				     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
-				     py::array_t<float, py::array::c_style | py::array::forcecast> output,
-				     const int spectrumNumber) {
-
-  py::buffer_info pbuf = pars.request(),
-    ebuf = energyArray.request(),
-    obuf = output.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1|| obuf.ndim != 1)
-    throw pybind11::value_error("pars, energyArray, and model must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  validate_grid_size(ebuf.size, obuf.size);
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto errors = std::vector<float>(nelem);
-
-  float *pptr = static_cast<float *>(pbuf.ptr);
-  float *eptr = static_cast<float *>(ebuf.ptr);
-  float *optr = static_cast<float *>(obuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
-  return output;
-}
-
-
-// I believe this shoud be marked py::return_value_policy::reference
-//
-template <xsccCall model, int NumPars>
-py::array_t<Real> wrapper_con_C(py::array_t<Real, py::array::c_style | py::array::forcecast> pars,
-				py::array_t<Real, py::array::c_style | py::array::forcecast> energyArray,
-				py::array_t<Real, py::array::c_style | py::array::forcecast> inModel,
-				const int spectrumNumber,
-				const string initStr) {
-
-  py::buffer_info pbuf = pars.request(),
-    ebuf = energyArray.request(),
-    mbuf = inModel.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
-    throw pybind11::value_error("pars and energyArray must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  validate_grid_size(ebuf.size, mbuf.size);
-
-  // Should we force spectrumNumber >= 1?
-  // We shouldn't be able to send in an invalid initStr so do not bother checking.
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto errors = std::vector<Real>(nelem);
-
-  double *pptr = static_cast<Real *>(pbuf.ptr);
-  double *eptr = static_cast<Real *>(ebuf.ptr);
-  double *mptr = static_cast<Real *>(mbuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, mptr, errors.data(), initStr.c_str());
-  return inModel;
-}
-
-
-// I believe this shoud be marked py::return_value_policy::reference
-//
-template <xsf77Call model, int NumPars>
-py::array_t<float> wrapper_con_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
-				 py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
-				 py::array_t<float, py::array::c_style | py::array::forcecast> inModel,
-				 const int spectrumNumber) {
-
-  py::buffer_info pbuf = pars.request(),
-    ebuf = energyArray.request(),
-    mbuf = inModel.request();
-  if (pbuf.ndim != 1 || ebuf.ndim != 1 || mbuf.ndim != 1)
-    throw pybind11::value_error("pars and energyArray must be 1D");
-
-  validate_par_size(NumPars, pbuf.size);
-
-  if (ebuf.size < 3)
-    throw pybind11::value_error("Expected at least 3 bin edges");
-
-  validate_grid_size(ebuf.size, mbuf.size);
-
-  // Should we force spectrumNumber >= 1?
-  // We shouldn't be able to send in an invalid initStr so do not bother checking.
-
-  const int nelem = ebuf.size - 1;
-
-  // Can we easily zero out the arrays?
-  auto errors = std::vector<float>(nelem);
-
-  float *pptr = static_cast<float *>(pbuf.ptr);
-  float *eptr = static_cast<float *>(ebuf.ptr);
-  float *mptr = static_cast<float *>(mbuf.ptr);
-
-  init();
-  model(eptr, nelem, pptr, spectrumNumber, mptr, errors.data());
-  return inModel;
-}
 
 PYBIND11_MODULE(_compiled, m) {
 #ifdef VERSION_INFO
@@ -508,7 +172,7 @@ Convolution models
     //
     //
     m.def("get_version",
-	  []() { init(); return XSutility::xs_version(); },
+	  []() { xspec_models_cxc::init(); return XSutility::xs_version(); },
 	  "The version of the XSPEC model library");
 
     // You could be fancy and have an XSPEC object where these
@@ -523,23 +187,23 @@ Convolution models
     //
 
     m.def("chatter",
-	  []() { init(); return FunctionUtility::xwriteChatter(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::xwriteChatter(); },
 	  "Get the XSPEC chatter level.");
 
     m.def("chatter",
-	  [](int i) { init(); FunctionUtility::xwriteChatter(i); },
+	  [](int i) { xspec_models_cxc::init(); FunctionUtility::xwriteChatter(i); },
 	  "Set the XSPEC chatter level.",
 	  "chatter"_a);
 
     // Abundances
     //
     m.def("abundance",
-	  []() { init(); return FunctionUtility::ABUND(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::ABUND(); },
 	  "Get the abundance-table setting.",
 	  py::return_value_policy::reference);
 
     m.def("abundance",
-	  [](const string& value) { init(); return FunctionUtility::ABUND(value); },
+	  [](const string& value) { xspec_models_cxc::init(); return FunctionUtility::ABUND(value); },
 	  "Set the abundance-table setting.",
 	  "table"_a);
 
@@ -548,7 +212,7 @@ Convolution models
     //
     m.def("elementAbundance",
 	  [](const string& value) {
-	    init();
+	    xspec_models_cxc::init();
 
 	    std::ostringstream local;
 	    auto cerr_buff = std::cerr.rdbuf();
@@ -568,7 +232,7 @@ Convolution models
 
     m.def("elementAbundance",
 	  [](const size_t Z) {
-	    init();
+	    xspec_models_cxc::init();
 	    if (Z < 1 || Z > FunctionUtility::NELEMS()) {
 	      std::ostringstream emsg;
 	      emsg << Z;
@@ -581,7 +245,7 @@ Convolution models
 	  "z"_a);
 
     m.def("elementName",
-	  [](const size_t Z) { init(); return FunctionUtility::elements(Z - 1); },
+	  [](const size_t Z) { xspec_models_cxc::init(); return FunctionUtility::elements(Z - 1); },
 	  "Return the name of an element given the atomic number.",
 	  "z"_a,
 	  py::return_value_policy::reference);
@@ -594,12 +258,12 @@ Convolution models
     // Cross sections
     //
     m.def("cross_section",
-	  []() { init(); return FunctionUtility::XSECT(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::XSECT(); },
 	  "Get the cross-section-table setting.",
 	  py::return_value_policy::reference);
 
     m.def("cross_section",
-	  [](const string& value) { init(); return FunctionUtility::XSECT(value); },
+	  [](const string& value) { xspec_models_cxc::init(); return FunctionUtility::XSECT(value); },
 	  "Set the cross-section-table setting.",
 	  "table"_a);
 
@@ -607,7 +271,7 @@ Convolution models
     //
     m.def("cosmology",
 	  []() {
-	    init();
+	    xspec_models_cxc::init();
 	    std::map<std::string, float> answer;
 	    answer["h0"] = FunctionUtility::getH0();
 	    answer["q0"] = FunctionUtility::getq0();
@@ -618,7 +282,7 @@ Convolution models
 
     m.def("cosmology",
 	  [](float h0, float q0, float lambda0) {
-	    init();
+	    xspec_models_cxc::init();
 	    FunctionUtility::setH0(h0);
 	    FunctionUtility::setq0(q0);
 	    FunctionUtility::setlambda0(lambda0);
@@ -631,42 +295,42 @@ Convolution models
     // the values, and then leave the rest to the user to do in Python.
     //
     m.def("clearXFLT",
-	  []() { init(); return FunctionUtility::clearXFLT(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::clearXFLT(); },
 	  "Clear the XFLT database for all spectra.");
 
     m.def("getNumberXFLT",
-	  [](int ifl) { init(); return FunctionUtility::getNumberXFLT(ifl); },
+	  [](int ifl) { xspec_models_cxc::init(); return FunctionUtility::getNumberXFLT(ifl); },
 	  "How many XFLT keywords are defined for the spectrum?",
 	  "spectrum"_a=1);
 
     m.def("getXFLT",
-	  [](int ifl) { init(); return FunctionUtility::getAllXFLT(ifl); },
+	  [](int ifl) { xspec_models_cxc::init(); return FunctionUtility::getAllXFLT(ifl); },
 	  "What are all the XFLT keywords for the spectrum?",
 	  "spectrum"_a=1,
 	  py::return_value_policy::reference);
 
     m.def("getXFLT",
-	  [](int ifl, int i) { init(); return FunctionUtility::getXFLT(ifl, i); },
+	  [](int ifl, int i) { xspec_models_cxc::init(); return FunctionUtility::getXFLT(ifl, i); },
 	  "Return the given XFLT key.",
 	  "spectrum"_a, "key"_a);
 
     m.def("getXFLT",
-	  [](int ifl, string skey) { init(); return FunctionUtility::getXFLT(ifl, skey); },
+	  [](int ifl, string skey) { xspec_models_cxc::init(); return FunctionUtility::getXFLT(ifl, skey); },
 	  "Return the given XFLT name.",
 	  "spectrum"_a, "name"_a);
 
     m.def("inXFLT",
-	  [](int ifl, int i) { init(); return FunctionUtility::inXFLT(ifl, i); },
+	  [](int ifl, int i) { xspec_models_cxc::init(); return FunctionUtility::inXFLT(ifl, i); },
 	  "Is the given XFLT key set?",
 	  "spectrum"_a, "key"_a);
 
     m.def("inXFLT",
-	  [](int ifl, string skey) { init(); return FunctionUtility::inXFLT(ifl, skey); },
+	  [](int ifl, string skey) { xspec_models_cxc::init(); return FunctionUtility::inXFLT(ifl, skey); },
 	  "Is the given XFLT name set?.",
 	  "spectrum"_a, "name"_a);
 
     m.def("setXFLT",
-	  [](int ifl, const std::map<string, Real>& values) { init(); FunctionUtility::loadXFLT(ifl, values); },
+	  [](int ifl, const std::map<string, Real>& values) { xspec_models_cxc::init(); FunctionUtility::loadXFLT(ifl, values); },
 	  "Set the XFLT keywords for a spectrum",
 	  "spectrum"_a, "values"_a);
 
@@ -675,17 +339,17 @@ Convolution models
     // What are the memory requirements?
     //
     m.def("clearModelString",
-	  []() { init(); return FunctionUtility::eraseModelStringDataBase(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::eraseModelStringDataBase(); },
 	  "Clear the model string database.");
 
     m.def("getModelString",
-	  []() { init(); return FunctionUtility::modelStringDataBase(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::modelStringDataBase(); },
 	  "Get the model string database.",
 	  py::return_value_policy::reference);
 
     m.def("getModelString",
 	  [](const string& key) {
-	    init();
+	    xspec_models_cxc::init();
 	    auto answer = FunctionUtility::getModelString(key);
 	    if (answer == FunctionUtility::NOT_A_KEY())
 	      throw pybind11::key_error(key);
@@ -695,7 +359,7 @@ Convolution models
 	  "key"_a);
 
     m.def("setModelString",
-	  [](const string& key, const string& value) { init(); FunctionUtility::setModelString(key, value); },
+	  [](const string& key, const string& value) { xspec_models_cxc::init(); FunctionUtility::setModelString(key, value); },
 	  "Get the key from the model string database.",
 	  "key"_a, "value"_a);
 
@@ -703,11 +367,11 @@ Convolution models
     // Python.
     //
     m.def("clearDb",
-	  []() { init(); return FunctionUtility::clearDb(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::clearDb(); },
 	  "Clear the keyword database.");
 
     m.def("getDb",
-	  []() { init(); return FunctionUtility::getAllDbValues(); },
+	  []() { xspec_models_cxc::init(); return FunctionUtility::getAllDbValues(); },
 	  "Get the keyword database.",
 	  py::return_value_policy::reference);
 
@@ -716,7 +380,7 @@ Convolution models
     //
     m.def("getDb",
 	  [](const string keyword) {
-	    init();
+	    xspec_models_cxc::init();
 
 	    std::ostringstream local;
 	    auto cerr_buff = std::cerr.rdbuf();
@@ -735,7 +399,7 @@ Convolution models
 	  "keyword"_a);
 
     m.def("setDb",
-	  [](const string keyword, const double value) { init(); FunctionUtility::loadDbValue(keyword, value); },
+	  [](const string keyword, const double value) { xspec_models_cxc::init(); FunctionUtility::loadDbValue(keyword, value); },
 	  "Set the keyword in the database to the given value.",
 	  "keyword"_a, "value"_a);
 
@@ -768,7 +432,7 @@ Convolution models
 	    float *eptr = static_cast<float *>(ebuf.ptr);
 	    float *optr = static_cast<float *>(obuf.ptr);
 
-	    init();
+	    xspec_models_cxc::init();
 	    tabint(eptr, nelem, pptr, pbuf.size,
 		   filename.c_str(), spectrumNumber,
 		   tableType.c_str(), optr, errors.data());
@@ -793,7 +457,7 @@ Convolution models
 	    if (ebuf.size < 3)
 	      throw pybind11::value_error("Expected at least 3 bin edges");
 
-	    validate_grid_size(ebuf.size, obuf.size);
+	    xspec_models_cxc::validate_grid_size(ebuf.size, obuf.size);
 
 	    // Should we force spectrumNumber >= 1?
 
@@ -806,7 +470,7 @@ Convolution models
 	    float *eptr = static_cast<float *>(ebuf.ptr);
 	    float *optr = static_cast<float *>(obuf.ptr);
 
-	    init();
+	    xspec_models_cxc::init();
 	    tabint(eptr, nelem, pptr, pbuf.size,
 		   filename.c_str(), spectrumNumber,
 		   tableType.c_str(), optr, errors.data());

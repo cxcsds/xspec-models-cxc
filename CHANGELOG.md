@@ -1,5 +1,15 @@
 # Changes in xspec-models-cxc
 
+## 0.0.25
+
+The `cosmology` routine now returns a dictionary with the key `h0`
+rather than `H0` as it matches the "set" version, which uses `h0` to
+set the Hubble constant.
+
+There are internal changes to separate out the template code from the
+module definition so we can use it to support user models, but that is
+still a long-way off.
+
 ## 0.0.24
 
 Support direct access to models via the C++ RealArray type. The C++

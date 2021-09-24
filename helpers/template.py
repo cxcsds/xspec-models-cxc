@@ -92,7 +92,7 @@ def apply_compiled(models, template, outfile):
             return ''
 
         out = '\n'
-        out += f'    m.def("{model.name}_", wrapper_inplace_CXX<'
+        out += f'    m.def("{model.name}_", xspec_models_cxc::wrapper_inplace_CXX<'
         out += f'{model.funcname}, {npars}>, "{text}",'
         out += '"pars"_a,"energies"_a,"out"_a,"spectrum"_a=1,'
         out += '"initStr"_a=""'
@@ -105,10 +105,10 @@ def apply_compiled(models, template, outfile):
 
         addmodels.append((model.name, npars))
 
-        out = wrapmodel_basic(model, npars, 'wrapper',
+        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper',
                               f'The XSPEC additive {model.name} model ({get_npars(npars)}).')
         out += '\n'
-        out += wrapmodel_basic(model, npars, 'wrapper_inplace',
+        out += wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_inplace',
                                f'The XSPEC additive {model.name} model ({get_npars(npars)}); inplace.',
                                inplace=True)
 
@@ -122,10 +122,10 @@ def apply_compiled(models, template, outfile):
 
         mulmodels.append((model.name, npars))
 
-        out = wrapmodel_basic(model, npars, 'wrapper',
+        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper',
                               f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}).')
         out += '\n'
-        out += wrapmodel_basic(model, npars, 'wrapper_inplace',
+        out += wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_inplace',
                                f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}); inplace.',
                                inplace=True)
 
@@ -139,7 +139,7 @@ def apply_compiled(models, template, outfile):
 
         conmodels.append((model.name, npars))
 
-        out = wrapmodel_basic(model, npars, 'wrapper_con',
+        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_con',
                               f'The XSPEC convolution {model.name} model ({get_npars(npars)}); inplace.',
                               convolution=True)
 
