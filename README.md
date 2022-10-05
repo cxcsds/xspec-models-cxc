@@ -20,7 +20,7 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-You need to have XSPEC 12.12.0 installed, have the `HEADAS`
+You need to have XSPEC 12.12.1 installed, have the `HEADAS`
 environment variable set up, and hope that your XSPEC build uses the
 same versions of the libraries as mine does (since there's currently
 no way to query XSPEC for these vaues programatically).
@@ -48,7 +48,25 @@ used automatically. Neither is required to use the compiled module.
 I am not putting this on [PyPI](https://pypi.org/) yet as there are a
 lot of things to work out first!
 
-## Notes
+## Notes (XSPEC 12.12.1)
+
+Untested.
+
+I think these are the numbers, but I'm not sure how I generated this
+table for 12.12.0!
+
+| Type           | Total  | Supported |
+| -------------- | ------ | --------- |
+| additive       |    148 |       148 |
+| multiplicative |     64 |        64 |
+| convolution    |     22 |        22 |
+| acn            |      1 |         0 |
+| C++            |    137 |         ? |
+| C              |      8 |         8 |
+| FORTRAN sp     |     86 |        86 |
+| FORTRAN dp     |      3 |         3 |
+
+## Notes (XSPEC 12.12.0)
 
 There are 232 models in the heasoft-6.29 model.dat file, and this
 module provides access to 231 of them (it's only the `pileup` model,
@@ -88,7 +106,15 @@ import xspec_models_cxc as x
 
 x.chatter(0)  # Hide the screen messages
 
-print(f"Version: {x.get_version()}")
+vxspec = x.get_version()
+print(f"Version: {vxspec}")
+
+def add_version():
+    plt.text(0.98, 0.98, f"XSPEC {vxspec}",
+             transform=plt.gcf().transFigure,
+             verticalalignment="top",
+             horizontalalignment="right")
+    
 
 egrid = np.arange(0.1, 11, 0.01)
 emid = (egrid[:-1] + egrid[1:]) / 2
@@ -105,6 +131,7 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photon/cm$^2$/s')
 plt.title('APEC model: Abundance=1 Redshift=0')
+add_version()
 
 plt.savefig('example-additive.png')
 
@@ -122,6 +149,7 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Relative')
 plt.title('PHABS model')
+add_version()
 
 plt.savefig('example-multiplicative.png')
 
@@ -143,6 +171,7 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photon/cm$^2$/s')
 plt.title('GSMOOTH(PHABS * APEC)')
+add_version()
 
 plt.savefig('example-convolution.png')
 
@@ -151,7 +180,7 @@ plt.savefig('example-convolution.png')
 The screen output is just
 
 ```
-Version: 12.12.0
+Version: 12.12.1
 ```
 
 and the plots are
@@ -184,6 +213,8 @@ supported models.
 ['cflux', 'clumin', 'cpflux', 'gsmooth', 'ireflect', 'kdblur', 'kdblur2', 'kerrconv', 'kyconv', 'lsmooth', 'partcov', 'rdblur', 'reflect', 'rfxconv', 'rgsxsrc', 'simpl', 'thcomp', 'vashift', 'vmshift', 'xilconv', 'zashift', 'zmshift']
 >>> x.list_models(modeltype=x.ModelType.Con, language=x.LanguageStyle.F77Style4)
 ['kyconv', 'rgsxsrc', 'thcomp']
+>>> x.list_models(language=x.LanguageStyle.F77Style8)
+['ismabs', 'ismdust', 'olivineabs']
 ```
 
 ### Querying a model
@@ -235,13 +266,19 @@ hardmax=20.0, delta=0.001), XSPECParameter(paramtype=<ParamType.Default: 1>, nam
 ### Table models
 
 New in version 0.0.20 is support for XSPEC table models. This support is
-rather limited as it only allows you toevaluate the table model and does
+rather limited as it only allows you toe valuate the table model and does
 not provide any access to the metadata in the model (which determines
 whether it is an atable or mtable model [unfortunately there is no flag
 to say it's an etable model], whether to add a redshift parameter, what
 the parameters are, what the default and parameter ranges are, ...).
 
 Models are evaluated with the `tableModel` function.
+
+Unfortunately, because of the way that XSPEC provides access to the
+table models, it will not work with XSPEC 12.12.0 (or, rather, it is
+not clear how best to support it in this version whilst also
+supporting XSPEC 12.12.1, so I've dropped the 12.12.0 support for
+now).
 
 ## Examples
 
@@ -497,7 +534,7 @@ get_version(...) method of builtins.PyCapsule instance
     The version of the XSPEC model library
 
 >>> x.get_version()
-'12.12.0'
+'12.12.1'
 ```
 
 - playing with the chatter setting
@@ -919,7 +956,7 @@ default parameter values apart for `redshift`, which is set to
 something cosmologically interesting):
 
 ```
->>> [0.4 if p.name == 'redshift' else p.default for p in x.info('smaug').parameters]
+>>> pars = [0.4 if p.name == 'redshift' else p.default for p in x.info('smaug').parameters]
 >>> x.smaug(pars, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
 
 ***XSPEC Error:  in function XSmaug: cannot find XFLTnnnn keyword for inner annulus for spectrum 1
@@ -958,11 +995,27 @@ was expecting:
 >>> x.setXFLT(2, {'inner': 0.1, 'outer': 0.2, 'width': 360})
 >>> egrid = np.arange(0.1, 7, 0.01)
 >>> y1 = x.smaug(energies=egrid, pars=pars, spectrum=1)
-Segmentation fault (core dumped)
+>>> y2 = x.smaug(energies=egrid, pars=pars, spectrum=2)
 ```
 
-I think this is a bug in the `smaug` model and have asked for
-confirmation.
+We can plot this:
+
+```
+>>> emid = (egrid[:-1] + egrid[1:]) / 2
+>>> plt.plot(emid, y1, label='Bin 1')
+>>> plt.plot(emid, y2, label='Bin 2')
+>>> plt.yscale('log')
+>>> plt.legend()
+>>> plt.xlabel('Energy (keV)')
+>>> plt.ylabel('Photons/cm$^2$/s')
+```
+
+to create
+
+![smaug model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/smaug.png "smaug model")
+
+Note that in XSPEC 12.12.0 this crashed, but it now seems to work in
+XSPEC 12.12.1.
 
 ### CFLUX convolution model (convolution, C++)
 
@@ -1175,6 +1228,7 @@ you will also have to set the abundances:
 
 Note that this routine ignores the current cross section setting
 as it always HAS to use the Verner cross sections as a baseline.
+
 >>> y is out
 True
 >>> y

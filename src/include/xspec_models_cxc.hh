@@ -1,4 +1,4 @@
-//  Copyright (C) 2009, 2015, 2017, 2020, 2021
+//  Copyright (C) 2009, 2015, 2017, 2020, 2021, 2022
 //  Smithsonian Astrophysical Observatory
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -214,6 +214,13 @@ py::array_t<Real> wrapper_inplace_C(py::array_t<Real, py::array::c_style | py::a
 }
 
 
+// If we had a template for fortranCall parametrized on the data type (float or double)
+// then we could use that to avoid having repeated call. In fact, you almost-certainly
+// can do this, but
+//
+// a) my template-foo is not strong enough
+// b) it may depend on the C++ version we are using
+//
 template <xsf77Call model, int NumPars>
 py::array_t<float> wrapper_f(py::array_t<float, py::array::c_style | py::array::forcecast> pars,
 			     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
@@ -275,6 +282,77 @@ py::array_t<float> wrapper_inplace_f(py::array_t<float, py::array::c_style | py:
   float *pptr = static_cast<float *>(pbuf.ptr);
   float *eptr = static_cast<float *>(ebuf.ptr);
   float *optr = static_cast<float *>(obuf.ptr);
+
+  xspec_models_cxc::init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
+  return output;
+}
+
+
+// Can we parametrize the f77 wrappers to automatically pick up
+// the difference between xsf77Call and xsF77Call?
+//  
+template <xsF77Call model, int NumPars>
+py::array_t<double> wrapper_F(py::array_t<double, py::array::c_style | py::array::forcecast> pars,
+			      py::array_t<double, py::array::c_style | py::array::forcecast> energyArray,
+			      const int spectrumNumber) {
+
+  py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1)
+    throw pybind11::value_error("pars and energyArray must be 1D");
+
+  validate_par_size(NumPars, pbuf.size);
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto result = py::array_t<double>(nelem);
+  auto errors = std::vector<double>(nelem);
+
+  py::buffer_info obuf = result.request();
+
+  double *pptr = static_cast<double *>(pbuf.ptr);
+  double *eptr = static_cast<double *>(ebuf.ptr);
+  double *optr = static_cast<double *>(obuf.ptr);
+
+  xspec_models_cxc::init();
+  model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());
+  return result;
+}
+
+
+// I believe this shoud be marked py::return_value_policy::reference
+//
+template <xsF77Call model, int NumPars>
+py::array_t<double> wrapper_inplace_F(py::array_t<double, py::array::c_style | py::array::forcecast> pars,
+				      py::array_t<double, py::array::c_style | py::array::forcecast> energyArray,
+				      py::array_t<double, py::array::c_style | py::array::forcecast> output,
+				      const int spectrumNumber) {
+
+  py::buffer_info pbuf = pars.request(),
+    ebuf = energyArray.request(),
+    obuf = output.request();
+  if (pbuf.ndim != 1 || ebuf.ndim != 1|| obuf.ndim != 1)
+    throw pybind11::value_error("pars, energyArray, and model must be 1D");
+
+  validate_par_size(NumPars, pbuf.size);
+
+  if (ebuf.size < 3)
+    throw pybind11::value_error("Expected at least 3 bin edges");
+
+  validate_grid_size(ebuf.size, obuf.size);
+
+  const int nelem = ebuf.size - 1;
+
+  // Can we easily zero out the arrays?
+  auto errors = std::vector<double>(nelem);
+
+  double *pptr = static_cast<double *>(pbuf.ptr);
+  double *eptr = static_cast<double *>(ebuf.ptr);
+  double *optr = static_cast<double *>(obuf.ptr);
 
   xspec_models_cxc::init();
   model(eptr, nelem, pptr, spectrumNumber, optr, errors.data());

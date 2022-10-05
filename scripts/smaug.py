@@ -1,9 +1,20 @@
 """Can I call smaug?"""
 
 import numpy as np
+
+from matplotlib import pyplot as plt
+
 import xspec_models_cxc as x
 
-print(f"Using: {x.get_version()}")
+vxspec = x.get_version()
+print(f"Version: {vxspec}")
+
+def add_version():
+    plt.text(0.98, 0.98, f"XSPEC {vxspec}",
+             transform=plt.gcf().transFigure,
+             verticalalignment="top",
+             horizontalalignment="right")
+
 
 x.cosmology(h0=70, lambda0=0.73, q0=0)
 
@@ -29,5 +40,6 @@ plt.legend()
 
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photons/cm$^2$/s')
+add_version()
 
 plt.savefig('smaug.png')

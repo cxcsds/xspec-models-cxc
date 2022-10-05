@@ -131,14 +131,20 @@ References
 
 from dataclasses import dataclass
 from enum import Enum, auto
+import logging
 from typing import List, Optional, Sequence
 
 try:
     from ._compiled import *
     __version__ = _compiled.__version__
-except ImportError:
-    import logging
+except ImportError as ie:
+    # Allow the actual error message to be reported if the user
+    # has tweaked the log level, for instance with:
+    #
+    #   import logging; logging.basicConfig(level=logging.DEBUG)
+    #
     logging.getLogger(__name__).warn("Unable to import compiled XSPEC models")
+    logging.getLogger(__name__).info(str(ie))
 
     __version__ = "none"
 
