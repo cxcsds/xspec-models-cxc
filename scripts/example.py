@@ -8,7 +8,15 @@ import xspec_models_cxc as x
 
 x.chatter(0)  # Hide the screen messages
 
-print(f"Version: {x.get_version()}")
+vxspec = x.get_version()
+print(f"Version: {vxspec}")
+
+def add_version():
+    plt.text(0.98, 0.98, f"XSPEC {vxspec}",
+             transform=plt.gcf().transFigure,
+             verticalalignment="top",
+             horizontalalignment="right")
+
 
 egrid = np.arange(0.1, 11, 0.01)
 emid = (egrid[:-1] + egrid[1:]) / 2
@@ -25,6 +33,7 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photon/cm$^2$/s')
 plt.title('APEC model: Abundance=1 Redshift=0')
+add_version()
 
 plt.savefig('example-additive.png')
 
@@ -42,6 +51,7 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Relative')
 plt.title('PHABS model')
+add_version()
 
 plt.savefig('example-multiplicative.png')
 
@@ -63,5 +73,6 @@ plt.legend()
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photon/cm$^2$/s')
 plt.title('GSMOOTH(PHABS * APEC)')
+add_version()
 
 plt.savefig('example-convolution.png')

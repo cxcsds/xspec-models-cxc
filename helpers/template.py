@@ -35,6 +35,7 @@ def apply_compiled(models, template, outfile):
     mulmodels = []
     conmodels = []
     f77models = []
+    f77models_dp = []
     cxxmodels = []
     cmodels = []
 
@@ -58,6 +59,9 @@ def apply_compiled(models, template, outfile):
         if model.language == 'Fortran - single precision':
             out += f'_f<{model.funcname}_'
             f77models.append(model.funcname)
+        elif model.language == 'Fortran - double precision':
+            out += F'_F<{model.funcname}_'
+            f77models_dp.append(model.funcname)
         elif model.language == 'C++ style':
             out += f'_C<C_{model.funcname}'
             cxxmodels.append(model.funcname)
@@ -190,7 +194,9 @@ def apply_compiled(models, template, outfile):
             'convolution': conmodels,
             'C++': cxxmodels,
             'C': cmodels,
-            'f77': f77models}
+            'f77': f77models,
+            'F77': f77models_dp,
+        }
 
 
 def apply_python(models, template, outfile):
@@ -308,6 +314,16 @@ def apply(modelfile, out_dir):
 
     # Filter to the ones we care about
     models = [m for m in allmodels if m.modeltype in ['Add', 'Mul', 'Con']]
+
+    # For now filter out FORTRAN double-precision models as I don't
+    # know what to do with them (need to check against Sherpa).
+    #
+    allowed_langs = ["Fortran - single precision",
+                     "Fortran - double precision",
+                     "C style",
+                     "C++ style"]
+    models = [m for m in models if m.language in allowed_langs]
+
     if len(models) == 0:
         sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
         sys.exit(1)
@@ -333,20 +349,43 @@ def apply(modelfile, out_dir):
     out_dir.mkdir(exist_ok=True)
     apply_python(models, template, outfile)
 
-    # Summarize
+    # It looks like info['models'] does not contain repeated values.
     #
     print("###############################################")
-    print(f"Number of models:  {len(info['models'])}")
-    print(f"   additive:       {len(info['additive'])}")
-    print(f"   multiplicative: {len(info['multiplicative'])}")
-    print(f"   convolution:    {len(info['convolution'])}")
-    print(f"   C++:            {len(info['C++'])}")
-    print(f"   C:              {len(info['C'])}")
-    print(f"   FORTRAN:        {len(info['f77'])}")
+    print(f"Number of supported models:  {len(info['models'])}")
+
+    # Summarize. We can't use the length of these as they may include
+    # repeated models (e.g. because we provide different ways to
+    # access the model). Hence the conversion to a set first (as the
+    # names are the same).
+    #
+    def count(label, value=None):
+        if value is None:
+            value = label
+
+        print(f"   {label:20s}  {len(set(info[value]))}")
+
+    count("additive")
+    count("multiplicative")
+    count("convolution")
+    count("C++")
+    count("C")
+    count("FORTRAN (sp)", "f77")
+    count("FORTRAN (dp)", "F77")
+
     nskip = len(allmodels) - len(info['models'])
     if nskip > 0:
         print("")
         print(f"   Number skipped: {nskip}")
+
+        assert len(info['models']) == len(models)
+
+        allknown = set(m.name for m in allmodels)
+        known = set(m.name for m in models)
+        for i, unknown in enumerate(sorted(allknown.difference(known)), 1):
+            print(f"      {i}. {unknown}")
+
+        print("")
 
     print("###############################################")
 

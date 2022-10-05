@@ -1,4 +1,4 @@
-//  Copyright (C) 2007, 2015-2018, 2019, 2020, 2021
+//  Copyright (C) 2007, 2015-2018, 2019, 2020, 2021, 2022
 //  Smithsonian Astrophysical Observatory
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -14,7 +14,7 @@
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-// We require XSPEC 12.12.0 as the include directories have
+// We require XSPEC 12.12.0 or later as the include directories have
 // moved compared to XSPEC 12.11.1 and earlier.
 //
 #include <xsTypes.h>
@@ -23,17 +23,9 @@
 #include <XSFunctions/Utilities/FunctionUtility.h>
 #include <XSUtil/Utils/XSutility.h>
 
-// Where do we get the model definitions? At the moment we manually add
-// the FORTRAN definition as I couldn't get functionMap to work.
-//
-#include <XSFunctions/functionMap.h>
-#include <XSFunctions/funcWrappers.h>
-
-// templates for binding the models
-//
-#include "xspec_models_cxc.hh"
-
-// Needed in XSPEC 12.12.0 as it's not defined in a header.
+// This provides access to tabint, at least for XSPEC 12.12.1.
+// It *does not* provide the necesssary symbol for XSPEC 12.12.0,
+// unfortunately.
 //
 // Should we use XSFunctions/tableInterpolate.cxx instead - namely
 //
@@ -47,10 +39,18 @@
 //                       const string& tableType,
 //                       const bool readFull);
 //
-extern "C" {
-  void tabint(float* ear, int ne, float* param, int npar, const char* filenm, int ifl,
-	      const char* tabtyp, float* photar, float* photer);
-}
+#include <XSFunctions/Utilities/xsFortran.h>
+
+// Where do we get the model definitions? At the moment we manually add
+// the FORTRAN definition as I couldn't get functionMap to work.
+//
+#include <XSFunctions/functionMap.h>
+#include <XSFunctions/funcWrappers.h>
+
+// templates for binding the models
+//
+#include "xspec_models_cxc.hh"
+
 
 // Allow access to the RealArray typedef.
 //
