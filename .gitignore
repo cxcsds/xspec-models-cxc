@@ -6,3 +6,5 @@ src/xspec_models_cxc/__init__.py
 __pycache__
 
 src/xspec.cxx
+
+helpers/report_xspec_version

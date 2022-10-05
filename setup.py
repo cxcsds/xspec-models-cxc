@@ -27,8 +27,10 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 sys.path.append(os.path.dirname(__file__))
 
 from helpers import template
+from helpers.identify_xspec import get_xspec_macros
 
-__version__ = "0.0.26"
+
+__version__ = "0.0.27"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
@@ -91,10 +93,13 @@ for libname in ["XSFunctions", "XSUtil", "XS", "hdsp",
     xspec_libs.append(match(libname))
 
 
+xspec_version, xspec_macros = get_xspec_macros(HEADAS)
+
+
 # Create the code now we believe we have the XSPEC installation
 # sorted out.
 #
-info = template.apply(modelfile, out_dir)
+info = template.apply(modelfile, xspec_version, out_dir)
 
 
 # Note: we need access to the src/include directory - can we just
@@ -104,6 +109,9 @@ include_dir = out_dir / 'include'
 if not include_dir.is_dir():
     sys.stderr.write(f'ERROR: unable to find {include_dir}/')
     sys.exit(1)
+
+macros = [('VERSION_INFO', __version__)] + xspec_macros
+
 
 ext_modules = [
     Pybind11Extension("xspec_models_cxc._compiled",
@@ -115,8 +123,8 @@ ext_modules = [
                                     str(HEADAS / 'include')],
                       library_dirs=[str(HEADAS / 'lib')],
                       libraries=xspec_libs,
-                      define_macros = [('VERSION_INFO', __version__)],
-                      ),
+                      define_macros = macros
+                  ),
 ]
 
 setup(
