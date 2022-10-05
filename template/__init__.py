@@ -24,7 +24,7 @@ What version of XSPEC is being used?
 
 >>> import xspec_models_cxc as x
 >>> x.get_version()
-'12.12.0'
+'@@XSPECVER@@'
 
 What models are supported (the actual list depends on the
 version of XSPEC the code was compiled against)?
@@ -116,7 +116,7 @@ other models, apart from requiring `table` and `table_type` arguments:
 >>> y = x.tableModel(table=infile, table_type="add", energies=egrid, pars=pars)
 
 Note that it is very easy to make the table model code crash the
-system, such as by sending in not enough parameters or settnig a
+system, such as by sending in not enough parameters or setting a
 parameter outside its hard limits:
 
 >>> x.tableModel(infile, "add", pars=[1, 2], energies=egrid)
@@ -256,6 +256,7 @@ def info(model: str) -> XSPECModel:
         raise ValueError(f"Unrecognized XSPEC model '{model}'")
 
     return out
+
 
 # Do we need Optional here?
 def list_models(modeltype: Optional[ModelType] = None,

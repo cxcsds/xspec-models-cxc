@@ -199,8 +199,14 @@ def apply_compiled(models, template, outfile):
         }
 
 
-def apply_python(models, template, outfile):
-    """Convert the template for the Python code."""
+def apply_python(models, template, xspec_version, outfile):
+    """Convert the template for the Python code.
+
+    xspec_version : str
+        The XSPEC library we are building against, including the patch
+        level.
+
+    """
 
     def to_model(mtype):
         return {'Add': 'ModelType.Add',
@@ -273,6 +279,7 @@ def apply_python(models, template, outfile):
         out = ifh.read()
 
         out = replace_term(out, '@@PYINFO@@', ',\n'.join(mstrs))
+        out = replace_term(out, '@@XSPECVER@@', xspec_version)
 
     with outfile.open(mode='wt') as ofh:
         ofh.write(out)
@@ -281,13 +288,16 @@ def apply_python(models, template, outfile):
 # At what point does it become worth using a templating system like
 # Jinja2?
 #
-def apply(modelfile, out_dir):
+def apply(modelfile, xspec_version, out_dir):
     """Parse the model.dat file and create the code.
 
     Parameters
     ----------
     modelfile : pathlib.Path
         The he model.dat file.
+    xspec_version : str
+        The XSPEC library we are building against, including the patch
+        level.
     out_dir : pathlib.Path
         The directory where to write the output.
 
@@ -347,7 +357,7 @@ def apply(modelfile, out_dir):
     out_dir = out_dir / 'xspec_models_cxc'
     outfile = out_dir / filename
     out_dir.mkdir(exist_ok=True)
-    apply_python(models, template, outfile)
+    apply_python(models, template, xspec_version, outfile)
 
     # It looks like info['models'] does not contain repeated values.
     #
