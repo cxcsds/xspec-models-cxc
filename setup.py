@@ -3,8 +3,8 @@
 The interface is auto-generated based on the model.dat file from the
 HEASARC installation. The HEADAS environment variable must be set.
 
-At present only XSPEC 12.12.1 (and patches) is supported, and the
-build is very fragile.
+At present only XSPEC 12.12.1 to 12.13.1 is supported (and the
+12.12.1/12.13.0 build is untested), and the build is very fragile.
 
 """
 
@@ -30,7 +30,7 @@ from helpers import template
 from helpers.identify_xspec import get_xspec_macros
 
 
-__version__ = "0.0.27"
+__version__ = "0.0.28"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
