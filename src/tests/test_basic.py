@@ -1,4 +1,4 @@
-# Copyright (C) 2007, 2015-2018, 2019, 2020, 2021
+# Copyright (C) 2007, 2015-2018, 2019, 2020, 2021, 2023
 # Smithsonian Astrophysical Observatory
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -30,7 +30,8 @@ def get_dtype(model):
 
     return {x.LanguageStyle.CppStyle8: np.float64,
             x.LanguageStyle.CStyle8: np.float64,
-            x.LanguageStyle.F77Style4: np.float32}[model.language]
+            x.LanguageStyle.F77Style4: np.float32,
+            x.LanguageStyle.F77Style8: np.float64}[model.language]
 
 
 def test_have_version():

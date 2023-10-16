@@ -20,7 +20,7 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-You need to have XSPEC 12.12.1 installed, have the `HEADAS`
+You need to have XSPEC 12.12.1 to 12.13.1 installed, have the `HEADAS`
 environment variable set up, and hope that your XSPEC build uses the
 same versions of the libraries as mine does (since there's currently
 no way to query XSPEC for these vaues programatically).
@@ -47,6 +47,21 @@ used automatically. Neither is required to use the compiled module.
 
 I am not putting this on [PyPI](https://pypi.org/) yet as there are a
 lot of things to work out first!
+
+## Notes (XSPEC 12.13.1)
+
+Untested.
+
+| Type           | Total  | Supported |
+| -------------- | ------ | --------- |
+| additive       |    148 |       148 |
+| multiplicative |     64 |        64 |
+| convolution    |     23 |        23 |
+| acn            |      1 |         0 |
+| C++            |    138 |       138 |
+| C              |      8 |         8 |
+| FORTRAN sp     |     86 |        86 |
+| FORTRAN dp     |      3 |         3 |
 
 ## Notes (XSPEC 12.12.1)
 
@@ -180,7 +195,7 @@ plt.savefig('example-convolution.png')
 The screen output is just
 
 ```
-Version: 12.12.1
+Version: 12.13.1
 ```
 
 and the plots are
@@ -534,7 +549,7 @@ get_version(...) method of builtins.PyCapsule instance
     The version of the XSPEC model library
 
 >>> x.get_version()
-'12.12.1'
+'12.13.1'
 ```
 
 - playing with the chatter setting
