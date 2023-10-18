@@ -251,7 +251,7 @@ Convolution models
 	  py::return_value_policy::reference);
 
     // Assume this is not going to change within a session!
-    // Also we assume that this can be called without callnig FNINIT.
+    // Also we assume that this can be called without calling FNINIT.
     //
     m.attr("numberElements") = FunctionUtility::NELEMS();
 
