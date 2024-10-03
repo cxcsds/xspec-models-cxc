@@ -7,13 +7,19 @@ from matplotlib import pyplot as plt
 import xspec_models_cxc as x
 
 vxspec = x.get_version()
-print(f"Version: {vxspec}")
+print(f"XSPEC version:  {vxspec}")
+print(f"Module version: {x.__version__}")
 
 def add_version():
     plt.text(0.98, 0.98, f"XSPEC {vxspec}",
              transform=plt.gcf().transFigure,
              verticalalignment="top",
              horizontalalignment="right")
+
+    plt.text(0.02, 0.98, f"Module {x.__version__}",
+             transform=plt.gcf().transFigure,
+             verticalalignment="top",
+             horizontalalignment="left")
 
 
 x.cosmology(h0=70, lambda0=0.73, q0=0)

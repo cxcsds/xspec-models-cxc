@@ -9,13 +9,19 @@ import xspec_models_cxc as x
 x.chatter(0)  # Hide the screen messages
 
 vxspec = x.get_version()
-print(f"Version: {vxspec}")
+print(f"XSPEC version:  {vxspec}")
+print(f"Module version: {x.__version__}")
 
 def add_version():
     plt.text(0.98, 0.98, f"XSPEC {vxspec}",
              transform=plt.gcf().transFigure,
              verticalalignment="top",
              horizontalalignment="right")
+
+    plt.text(0.02, 0.98, f"Module {x.__version__}",
+             transform=plt.gcf().transFigure,
+             verticalalignment="top",
+             horizontalalignment="left")
 
 
 egrid = np.arange(0.1, 11, 0.01)

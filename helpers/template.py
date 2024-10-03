@@ -199,7 +199,7 @@ def apply_compiled(models, template, outfile):
         }
 
 
-def apply_python(models, template, xspec_version, outfile):
+def apply_python(modelfile, models, template, xspec_version, outfile):
     """Convert the template for the Python code.
 
     xspec_version : str
@@ -278,6 +278,7 @@ def apply_python(models, template, xspec_version, outfile):
     with template.open(mode='rt') as ifh:
         out = ifh.read()
 
+        out = replace_term(out, '@@MODELDAT@@', str(modelfile))
         out = replace_term(out, '@@PYINFO@@', ',\n'.join(mstrs))
         out = replace_term(out, '@@XSPECVER@@', xspec_version)
 
@@ -294,7 +295,7 @@ def apply(modelfile, xspec_version, out_dir):
     Parameters
     ----------
     modelfile : pathlib.Path
-        The he model.dat file.
+        The model.dat file.
     xspec_version : str
         The XSPEC library we are building against, including the patch
         level.
@@ -319,7 +320,7 @@ def apply(modelfile, xspec_version, out_dir):
 
     allmodels = parse_xspec_model_description(modelfile)
     if len(allmodels) == 0:
-        sys.stderr.write(f'ERROR: unable to parse model.fat file: {modelfile}\n')
+        sys.stderr.write(f'ERROR: unable to parse model.dat file: {modelfile}\n')
         sys.exit(1)
 
     # Filter to the ones we care about
@@ -357,7 +358,7 @@ def apply(modelfile, xspec_version, out_dir):
     out_dir = out_dir / 'xspec_models_cxc'
     outfile = out_dir / filename
     out_dir.mkdir(exist_ok=True)
-    apply_python(models, template, xspec_version, outfile)
+    apply_python(modelfile, models, template, xspec_version, outfile)
 
     # It looks like info['models'] does not contain repeated values.
     #
