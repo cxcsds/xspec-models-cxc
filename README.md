@@ -26,6 +26,9 @@ have the `HEADAS` environment variable set up and probably have also
 sourced the `$HEADAS/headas-init.sh` or `$HEADAS/headas-init.csh`
 script.
 
+This can use a full-blown XSPEC installation or a models-only build
+of XSPEC (including the CXC conda `xspec-modelsonly` distribution).
+
 With this you can
 
 ```
@@ -46,6 +49,23 @@ The build requires both
 [parse-xspec](https://github.com/cxcsds/parse_xspec) but they will be
 used automatically. Neither is required to use the compiled module.
 
+The code will guess whether to use g++ or clang++. This choice
+will be over-ridden by setting the CXX environment variable.
+
+Testing is done with either of
+
+```
+% pip install pytest
+
+% pip install .[test]
+```
+
+followed by
+
+```
+% pytest
+```
+
 I am not putting this on [PyPI](https://pypi.org/) yet as there are a
 lot of things to work out first!
 
@@ -59,7 +79,6 @@ Number of models: 293
 | multiplicative |     67 |        67 |
 | convolution    |     23 |        23 |
 | acn            |      1 |         0 |
-| -------------- | ------ | --------- |
 
 | Type           | Total  | Supported |
 | -------------- | ------ | --------- |
@@ -67,7 +86,6 @@ Number of models: 293
 | C              |      8 |         8 |
 | FORTRAN sp     |     86 |        86 |
 | FORTRAN dp     |      3 |         3 |
-| -------------- | ------ | --------- |
 
 Number skipped:   1
 

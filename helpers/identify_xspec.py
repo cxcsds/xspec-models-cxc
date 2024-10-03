@@ -18,43 +18,65 @@ import re
 import subprocess
 
 
-def get_compiler():
+def get_compiler() -> str:
+    """Guess the C++ compiler to use.
+
+    If the CXX environment variable is used then use that, otherwise
+    try g++ and then clang.
+
+    """
     compiler = os.getenv("CXX")
     if compiler is not None:
         return compiler
 
-    # We could try and be clever here, but for now just fall through
-    # to g++ and assume that anyone using clang has to set CXX.  I do
-    # not build on macOS so it's not a problem for me^(TM).
+    # Do not try anything too clever here.
     #
-    compiler = "g++"
-    return compiler
+    for compiler in ["g++", "clang++"]:
+        args = [compiler, "--version"]
+
+        try:
+            subprocess.run(args, check=True)
+            return compiler
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+    raise ValueError("Use the CXX environment variable to select the C++ compiler to use")
 
 
-def compile_code(HEADAS):
-    """Compile the code."""
+def compile_code(base):
+    """Compile the code.
+
+    base gives the location from which we can access /lib and /include.
+    Ideally this would be HEADAS but the CXC xspec-modelsonly conda
+    package has a different idea.
+
+    """
 
     basename = "report_xspec_version"
     helpers = pathlib.Path("helpers")
 
     compiler = get_compiler()
-    args = [compiler, str(helpers / f"{basename}.cxx"),
+    print(f"** Using compiler: {compiler}")
+    args = [compiler,
+            str(helpers / f"{basename}.cxx"),
             "-o", str(helpers / basename),
-            f"-I{HEADAS}/include",
-            f"-L{HEADAS}/lib", "-lXSUtil"
+            f"-Wl,-rpath,{base}/lib",
+            f"-I{base}/include",
+            f"-L{base}/lib",
+            "-lXSUtil"
         ]
 
     subprocess.run(args, check=True)
     return helpers / basename
 
 
-def get_xspec_macros(HEADAS):
+def get_xspec_macros(base):
     """Return the macro definitions which define the XSPEC version.
 
     Parameters
     ----------
-    HEADAS : pathlib.Path
-        The path to the HEADAS location.
+    base : pathlib.Path
+        The path to the HEADAS /lib and /include directories.
 
     Returns
     -------
@@ -64,13 +86,12 @@ def get_xspec_macros(HEADAS):
 
     """
 
-    code = compile_code(HEADAS)
+    code = compile_code(base)
     command = subprocess.run([str(code)],
                              check=True,
                              stdout=subprocess.PIPE)
 
     xspec_version = command.stdout.decode().strip()
-    print(f"Building against XSPEC: '{xspec_version}'")
 
     # split the XSPEC version
     toks = xspec_version.split(".")
@@ -78,7 +99,7 @@ def get_xspec_macros(HEADAS):
     xspec_major = toks[0]
     xspec_minor = toks[1]
 
-    match = re.match("^(\d+)(.*)$", toks[2])
+    match = re.match(r"^(\d+)(.*)$", toks[2])
     xspec_micro = match[1]
     xspec_patch = None if match[2] == "" else match[2]
 

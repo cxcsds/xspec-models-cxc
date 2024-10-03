@@ -1,7 +1,9 @@
 # What needs to get included here?
 
-recursive-include helpers *.py
+include helpers/*.py
+include helpers/report_xspec_version.cxx
 
+include template/__init__.py
 include template/xspec.cxx
 
 include CHANGELOG.md
