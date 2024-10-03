@@ -59,10 +59,13 @@ for (name, enum) in [("additive", x.ModelType.Add),
     nsupported_all += nsupported
     print(f"| {name:14s} | {ntotal:6d} | {nsupported:9d} |")
 
-print("| -------------- | ------ | --------- |")
+print("| -------------- | ------ | --------- |\n")
 
 ntotal_all2 = 0
 nsupported_all2 = 0
+
+print("| Type           | Total  | Supported |")
+print("| -------------- | ------ | --------- |")
 
 for name, lname in [("C++", "C++ style"),
                     ("C", "C style"),

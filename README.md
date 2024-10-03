@@ -269,7 +269,7 @@ in version 0.0.5 and earlier is no-longer provided.
 ```
 >>> import xspec_models_cxc as x
 >>> x.__version__
-'0.0.24'
+'0.0.29'
 >>> help(x)
 Help on package xspec_models_cxc:
 
@@ -296,7 +296,7 @@ DESCRIPTION
 
     >>> import xspec_models_cxc as x
     >>> x.get_version()
-    '12.12.0'
+    '12.14.1'
 
     What models are supported (the actual list depends on the
     version of XSPEC the code was compiled against)?
@@ -388,7 +388,7 @@ DESCRIPTION
     >>> y = x.tableModel(table=infile, table_type="add", energies=egrid, pars=pars)
 
     Note that it is very easy to make the table model code crash the
-    system, such as by sending in not enough parameters or settnig a
+    system, such as by sending in not enough parameters or setting a
     parameter outside its hard limits:
 
     >>> x.tableModel(infile, "add", pars=[1, 2], energies=egrid)
@@ -405,16 +405,12 @@ PACKAGE CONTENTS
 CLASSES
     builtins.object
         XSPECModel
-		XSPECParameter
+        XSPECParameter
     enum.Enum(builtins.object)
         LanguageStyle
         ModelType
+        ParamType
 
-    class LanguageStyle(enum.Enum)
-     |  LanguageStyle(value, names=None, *, module=None, qualname=None, type=None, start=1)
-     |
-     |  The various ways to define and call XSPEC models.
-     |
 ...
 
 FUNCTIONS
@@ -426,7 +422,8 @@ FUNCTIONS
 
         The XSPEC multiplicative SSS_ice model (1 parameter).
 
-        2. SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
+        2. SSS_ice(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[
+numpy.float32]
 
         The XSPEC multiplicative SSS_ice model (1 parameter); inplace.
 
@@ -442,45 +439,19 @@ FUNCTIONS
 
         The XSPEC multiplicative TBabs model (1 parameter); inplace.
 
+    TBabs_(...) method of builtins.PyCapsule instance
+        TBabs_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
+
+        The XSPEC multiplicative TBabs model (1 parameter); RealArray, inplace.
+
+    TBfeo(...) method of builtins.PyCapsule instance
 ...
-
-    zxipab(...) method of builtins.PyCapsule instance
-        zxipab(*args, **kwargs)
-        Overloaded function.
-
-        1. zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
-
-        The XSPEC multiplicative zxipab model (5 parameters).
-
-        2. zxipab(pars: numpy.ndarray[numpy.float32], energies: numpy.ndarray[numpy.float32], out: numpy.ndarray[numpy.float32], spectrum: int = 1) -> numpy.ndarray[numpy.float32]
-
-        The XSPEC multiplicative zxipab model (5 parameters); inplace.
-
-    zxipcf(...) method of builtins.PyCapsule instance
-        zxipcf(*args, **kwargs)
-        Overloaded function.
-
-        1. zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str
-= '') -> numpy.ndarray[numpy.float64]
-
-        The XSPEC multiplicative zxipcf model (4 parameters).
-
-        2. zxipcf(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
-
-        The XSPEC multiplicative zxipcf model (4 parameters); inplace.
-
-    zxipcf_(...) method of builtins.PyCapsule instance
-        zxipcf_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
-
-        The XSPEC multiplicative zxipcf model (4 parameters); RealArray, inplace.
 
 DATA
     List = typing.List
         A generic version of list.
 
     Optional = typing.Optional
-        Optional type.
-
         Optional[X] is equivalent to Union[X, None].
 
     Sequence = typing.Sequence
@@ -489,10 +460,10 @@ DATA
     numberElements = 30
 
 VERSION
-    0.0.24
+    0.0.29
 
 FILE
-    /some/long/path/to//xspec-models-cxc/xspec_models_cxc.__init__.py
+    /some/long/path/to/xspec-models-cxc/xspec_models_cxc.__init__.py
 
 ```
 
@@ -514,7 +485,7 @@ get_version(...) method of builtins.PyCapsule instance
     The version of the XSPEC model library
 
 >>> x.get_version()
-'12.13.1'
+'12.14.1'
 ```
 
 - playing with the chatter setting
@@ -1126,9 +1097,9 @@ tableModel(...) method of builtins.PyCapsule instance
 
 # Directly using the RealArray interface
 
-Version 0.0.24 allows us to "directly" use the C++ interface, at the
-expense of using the x.RealArray type rather than NumPy arrays. The
-following models
+Version 0.0.24 and later allows us to "directly" use the C++
+interface, at the expense of using the x.RealArray type rather than
+NumPy arrays. The following models
 
 ```
 >>> x.list_models(language=x.LanguageStyle.CppStyle8)
