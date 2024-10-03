@@ -145,10 +145,15 @@ def test_eval_wabs_inline(pars, energies):
     assert y is out
 
 
-# Unfortunately some models need to be skipped for
-# some reason. This is obviously going to be version-specific.
+# Unfortunately some models need to be skipped for some reason. This
+# is obviously going to be version-specific.  Normally I catch these
+# early when updating Sherpa support and so can report it to HEASARC,
+# but there are occasional releases that come out at a bad time and
+# end up missing out (e.g. the 12.14.0 release).
 #
-# grbjet occasional failures has been reported to XSPEC (in 12.12.0).
+# grbjet occasional failures has been reported to XSPEC (in 12.12.0);
+# it is not clear if it has been fixed in 12.14.1 so is still skipped.
+# bsedov and bvvnei had problems in 12.14.0, and ismabs in 12.14.1.
 #
 # rfxconv and xilconv require additinal setup (e.g. energy range) that I have no
 # energy to diesntangle, so we skip
@@ -162,6 +167,21 @@ MODELS_CON = x.list_models(modeltype=x.ModelType.Con)
 MODELS_ADD_SKIP = ['grbjet']
 MODELS_MUL_SKIP = []
 MODELS_CON_SKIP = ['rfxconv', 'rgsxsrc', 'xilconv']
+
+if x.get_version() in ["12.14.0", "12.14.0a", "12.14.0b",
+                       "12.14.0c", "21.14.0d", "12.14.0e"]:
+    MODELS_ADD_SKIP.append("bsedov")
+
+if x.get_version() in ["12.14.0", "12.14.0a", "12.14.0b",
+                       "12.14.0c", "21.14.0d", "12.14.0e",
+                       "12.14.0f", "12.14.0g", "12.14.0h"]:
+    MODELS_ADD_SKIP.append("bvvnei")
+
+# XSPEC 12.14.1 and 12.14.1a fail, but it's not obvious that patch a
+# was ever released as patch b was released at the same time.
+#
+if x.get_version() == "12.14.1":
+    MODELS_MUL_SKIP.append("ismabs")
 
 
 @pytest.mark.parametrize("model", MODELS_ADD)
