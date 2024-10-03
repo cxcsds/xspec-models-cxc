@@ -1,8 +1,44 @@
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=64.0.0",
     "wheel",
     "pybind11>=2.10.0",
     "parse-xspec==0.1.0",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "xspec_models_cxc"
+authors = [
+  {name = "Douglas Burke", email = "dburke@cfa.harvard.edu"}
+]
+description = "Access the XSPEC models from Python **experimental**"
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Physics"
+]
+
+requires-python = ">=3.9"
+dependencies = [
+  "numpy"
+]
+
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/cxcsds/xspec-models-cxc"
+Issues = "https://github.com/cxcsds/xspec-models-cxc/issues"
+
+[project.optional-dependencies]
+test = [
+  "pytest"
+]

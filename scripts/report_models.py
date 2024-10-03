@@ -59,7 +59,7 @@ for (name, enum) in [("additive", x.ModelType.Add),
     nsupported_all += nsupported
     print(f"| {name:14s} | {ntotal:6d} | {nsupported:9d} |")
 
-print("| -------------- | ------ | --------- |\n")
+print("")
 
 ntotal_all2 = 0
 nsupported_all2 = 0
@@ -92,7 +92,7 @@ for name, lname in [("C++", "C++ style"),
     nsupported_all2 += nsupported
     print(f"| {name:14s} | {ntotal:6d} | {nsupported:9d} |")
 
-print("| -------------- | ------ | --------- |\n")
+print("")
 
 print(f"Number skipped:   {ntotal_all - nsupported_all}\n")
 

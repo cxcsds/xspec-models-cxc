@@ -1,5 +1,18 @@
 # Changes in xspec-models-cxc
 
+## 0.0.30
+
+Potential build improvements, including support for using the CXC
+xspec-modelsonly conda package for providing XSPEC, updates to the
+build infrastructure to use more-modern Python packaging techniques,
+and (hopefully) support for the macOS platform.
+
+## 0.0.26 - 0.0.29
+
+I forgot to update this file, but I do not think there were significant
+changes. Version 0.0.29 was documented as supporting XSPEC 12.14.1
+but the previous versions should have worked as well.
+
 ## 0.0.25
 
 The `cosmology` routine now returns a dictionary with the key `h0`
