@@ -60,6 +60,9 @@ Number of models: 293
 | convolution    |     23 |        23 |
 | acn            |      1 |         0 |
 | -------------- | ------ | --------- |
+
+| Type           | Total  | Supported |
+| -------------- | ------ | --------- |
 | C++            |    197 |       196 |
 | C              |      8 |         8 |
 | FORTRAN sp     |     86 |        86 |
