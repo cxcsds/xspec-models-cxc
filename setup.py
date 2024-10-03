@@ -1,10 +1,14 @@
 """Build the xspec_models_cxc module
 
 The interface is auto-generated based on the model.dat file from the
-HEASARC installation. The HEADAS environment variable must be set.
+HEASARC installation. The HEADAS environment variable must be set and
+the library environment set up to point to all the required libraries
+(so, it is likely that `source $HEADAS/headas-init.sh` or equivalent
+has been performed).
 
-At present only XSPEC 12.12.1 to 12.13.1 is supported (and the
-12.12.1/12.13.0 build is untested), and the build is very fragile.
+At present only XSPEC 12.12.1 to 12.14.1 is supported (newer versions
+may work and older versions see limited to no testing), and the build
+is very fragile (for instance, there has been no macOS testing).
 
 """
 
@@ -30,14 +34,16 @@ from helpers import template
 from helpers.identify_xspec import get_xspec_macros
 
 
-__version__ = "0.0.28"
+__version__ = "0.0.29"
 
 # Check HEASARC is set up. The following does not provide a useful
 # message from 'pip install' so how do we make it more meaningful?
 #
 HEADAS = os.getenv('HEADAS')
 if HEADAS is None:
+    sys.stderr.write('##################################################\n')
     sys.stderr.write('ERROR: unable to find HEADAS environment variable.\n')
+    sys.stderr.write('##################################################\n')
     sys.exit(1)
 
 HEADAS = pathlib.Path(HEADAS)

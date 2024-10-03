@@ -20,10 +20,11 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-You need to have XSPEC 12.12.1 to 12.13.1 installed, have the `HEADAS`
-environment variable set up, and hope that your XSPEC build uses the
-same versions of the libraries as mine does (since there's currently
-no way to query XSPEC for these vaues programatically).
+You need to have XSPEC 12.12.1 to 12.14.1 installed (it may work with
+newer versions but this depends on how stable the XSPEC build is),
+have the `HEADAS` environment variable set up and probably have also
+sourced the `$HEADAS/headas-init.sh` or `$HEADAS/headas-init.csh`
+script.
 
 With this you can
 
@@ -48,63 +49,26 @@ used automatically. Neither is required to use the compiled module.
 I am not putting this on [PyPI](https://pypi.org/) yet as there are a
 lot of things to work out first!
 
-## Notes (XSPEC 12.13.1)
+## Notes (XSPEC 12.14.1)
 
-Untested.
+Number of models: 293
 
 | Type           | Total  | Supported |
 | -------------- | ------ | --------- |
-| additive       |    148 |       148 |
-| multiplicative |     64 |        64 |
+| additive       |    203 |       203 |
+| multiplicative |     67 |        67 |
 | convolution    |     23 |        23 |
 | acn            |      1 |         0 |
-| C++            |    138 |       138 |
+| -------------- | ------ | --------- |
+| C++            |    197 |       196 |
 | C              |      8 |         8 |
 | FORTRAN sp     |     86 |        86 |
 | FORTRAN dp     |      3 |         3 |
-
-## Notes (XSPEC 12.12.1)
-
-Untested.
-
-I think these are the numbers, but I'm not sure how I generated this
-table for 12.12.0!
-
-| Type           | Total  | Supported |
 | -------------- | ------ | --------- |
-| additive       |    148 |       148 |
-| multiplicative |     64 |        64 |
-| convolution    |     22 |        22 |
-| acn            |      1 |         0 |
-| C++            |    137 |         ? |
-| C              |      8 |         8 |
-| FORTRAN sp     |     86 |        86 |
-| FORTRAN dp     |      3 |         3 |
 
-## Notes (XSPEC 12.12.0)
+Number skipped:   1
 
-There are 232 models in the heasoft-6.29 model.dat file, and this
-module provides access to 231 of them (it's only the `pileup` model,
-which is the one `acn` type) that is not supported.
-
-| Type           | Total  | Supported |
-| -------------- | ------ | --------- |
-| additive       |    148 |       148 |
-| multiplicative |     61 |        61 |
-| convolution    |     22 |        22 |
-| acn            |      1 |         0 |
-| C++            |    135 |       134 |
-| C              |      8 |         8 |
-| FORTRAN        |     89 |        89 |
-
-I had to
-
-```
-% export LD_LIBRARY_PATH=$HEADAS/lib
-```
-
-in order to use the module. I believe it depends on how you built the
-XSPEC model library (I am using a full XSPEC installation).
+The `pileup` model is unsupported (as it uses the "acn" model type).
 
 ## Quick run through
 
@@ -129,7 +93,7 @@ def add_version():
              transform=plt.gcf().transFigure,
              verticalalignment="top",
              horizontalalignment="right")
-    
+
 
 egrid = np.arange(0.1, 11, 0.01)
 emid = (egrid[:-1] + egrid[1:]) / 2
@@ -195,7 +159,8 @@ plt.savefig('example-convolution.png')
 The screen output is just
 
 ```
-Version: 12.13.1
+XSPEC version:  12.14.1
+Module version: 0.0.29
 ```
 
 and the plots are
@@ -1337,7 +1302,7 @@ module does some of the following:
 
   Note that we currently bind to the correct versions for FORTRAN
   (single precision) and C models, but the C++ models (which, in
-  XSPEC 12.12.0 is 134 of the 231 models we support) are handled
+  XSPEC 12.14.1 is 197 of the 293 models we support) are handled
   using the C interface. To see if this is a problem I have added
   (in version 0.0.24) the RealArray interface discussed above,
   but it doesn't seem to make much difference.

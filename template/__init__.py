@@ -1,4 +1,4 @@
-#  Copyright (C) 2007, 2015-2018, 2019, 2020, 2021, 2023
+#  Copyright (C) 2007, 2015-2021, 2023-2024
 #  Smithsonian Astrophysical Observatory
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -184,7 +184,7 @@ class XSPECParameter:
     default: float
     units: Optional[str] = None
     frozen: bool = False
-    # Would it be better to just have limits = [hardmin, softmni, softmax, hardmax]?
+    # Would it be better to just have limits = [hardmin, softmin, softmax, hardmax]?
     softmin: Optional[float] = None
     softmax: Optional[float] = None
     hardmin: Optional[float] = None
@@ -207,6 +207,10 @@ class XSPECModel:
     can_cache: bool = True
 
 
+# The model.dat file used to create this interface
+_model_dat = "@@MODELDAT@@"
+
+# Information on the supported models.
 _info = {
 @@PYINFO@@
     }
