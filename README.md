@@ -29,17 +29,17 @@ XSPEC](https://heasarc.gsfc.nasa.gov/lheasoft/) directly, but it
 should also work if you build *just* the XSPEC models library with the
 `--enable-xs-models-only` flag. An alternative is to use the
 CXC-provided `xspec-modelsonly` conda package that comes as part of
-the CXC CIAO distribution.
+the [CXC CIAO distribution](https://cxc.harvard.edu/ciao/download/conda.html).
 
 Supported versions of XSPEC: 12.12.1 to 12.14.1.
 
 Newer versions may work, but there's no guarantee since HEASOFT does
-change the build from time to time.
+change the build from time to time. Support for the older versions
+is not guaranteed either!
 
 You need to have the `HEADAS` environment variable set up and probably
 have also sourced the `$HEADAS/headas-init.sh` or
-`$HEADAS/headas-init.csh` script (depending on exactly how XSPEC was
-built). With this you can
+`$HEADAS/headas-init.csh` script. Then you can
 
 ```
 % git clone https://github.com/cxcsds/xspec-models-cxc
@@ -47,7 +47,9 @@ built). With this you can
 ```
 
 The code will guess whether to use g++ or clang++. This choice will be
-over-ridden by setting the CXX environment variable.
+over-ridden by setting the CXX environment variable (useful for cases
+where XSPEC was built with clang but you also have gcc installed, as
+the install defaults to g++ in this case).
 
 I suggest creating a new venv or conda environment, and then install
 with the following:
@@ -62,10 +64,105 @@ The build requires both
 installed automatically if needed. Neither is required to use the
 compiled module.
 
-Testing is done with:
+Testing is done with (the actual output depends on the version of
+XSPEC installed and the version of this module):
 
 ```
 % pytest
+============================= test session starts ==============================
+platform linux -- Python 3.12.6, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/dburke/sherpa/xspec-models-cxc
+configfile: pyproject.toml
+collected 788 items
+
+src/xspec_models_cxc/tests/test_basic.py ............................... [  3%]
+........................................................................ [ 13%]
+..................................s..................................... [ 22%]
+......s................................................................. [ 31%]
+........................................................................ [ 40%]
+................s...........................................s........... [ 49%]
+........................................................................ [ 58%]
+........................................................................ [ 67%]
+.....................................ss....s..                           [ 73%]
+src/xspec_models_cxc/tests/test_realarray.py ........................... [ 77%]
+........................................................................ [ 86%]
+........................................................................ [ 95%]
+....................................                                     [100%]
+
+================== 781 passed, 7 skipped in 144.97s (0:02:24) ==================
+ delta   17.767712895533830
+ Ldisc   1.3800000596009081E+046 erg s^-1
+ RBLR   2506.2608817039027      Rg   3.7148351461236269E+017 cm
+ RIR   62656.522903742269      Rg   9.2870879929498337E+018 cm
+ mdot>=0.01, so jet = SSC + EC
+ gcool   7.2043275554242925
+ log Pr   45.3022881     log Pb   45.1834221
+ log Pe   44.5943985     log Pp   46.9754486
+ log Pj   46.9931221
+ idre: initializing data tables, please wait...
+       Ref.: Dovciak M., Karas V. & Yaqoob T.
+             ApJS July 2004, Volume 153, Issue 1, pp. 205-221
+       ------------------------------------------------------
+        ...initializing finished
+ -------setup for qsosed------
+ Gamma_warm=   2.5000000000000000      kTe_warm=  0.20000000000000001
+ Gamma_hard=internal calculation  kTe_hot=   100.00000000000000
+ albedo=  0.29999999999999999
+ Rwarm/Rhot=   2.0000000000000000
+ Htmax=   100.00000000000000
+
+ ------hot compton-----
+ Gamma_hot=   1.9943788473581052      Rhot=   14.262535224556565
+ T(Rhot)nt=   115584.83219658821      Tseed=   216069.57323613123
+ Ldis,hot/Ledd=   2.0029989017115401E-002 Lhot/Ledd=   2.4198583118457476E-002
+
+ ------warm compton-----
+ T(Rw)=   80093.592123168855      Rwarm=   28.525070449113130
+
+ ------Rout-----
+ rout(rsg)=   1288.8911460759962
+ tout=   5592.6110556431468
+ -----------
+ delta   17.767712895533830
+ Ldisc   1.3800000596009081E+046 erg s^-1
+ RBLR   2506.2608817039027      Rg   3.7148351461236269E+017 cm
+ RIR   62656.522903742269      Rg   9.2870879929498337E+018 cm
+ mdot>=0.01, so jet = SSC + EC
+ gcool   7.2043275554242925
+ log Pr   45.3022881     log Pb   45.1834221
+ log Pe   44.5943985     log Pp   46.9754486
+ log Pj   46.9931221
+ -------setup for qsosed------
+ Gamma_warm=   2.5000000000000000      kTe_warm=  0.20000000000000001
+ Gamma_hard=internal calculation  kTe_hot=   100.00000000000000
+ albedo=  0.29999999999999999
+ Rwarm/Rhot=   2.0000000000000000
+ Htmax=   100.00000000000000
+
+ ------hot compton-----
+ Gamma_hot=   1.9943788473581052      Rhot=   14.262535224556565
+ T(Rhot)nt=   115584.83219658821      Tseed=   216069.57323613123
+ Ldis,hot/Ledd=   2.0029989017115401E-002 Lhot/Ledd=   2.4198583118457476E-002
+
+ ------warm compton-----
+ T(Rw)=   80093.592123168855      Rwarm=   28.525070449113130
+
+ ------Rout-----
+ rout(rsg)=   1288.8911460759962
+ tout=   5592.6110556431468
+ -----------
+
+ ISMabs: ISM absorption model Version1.2
+ Gatuzz, Garcia, Kallman, Mendoza, & Gorczyca (2014)
+ Note: Default column densities are given
+ according to Grevesse, N. & Sauval (1998)
+ assuming N_H = 1.E21 cm^-2
+
+ idre: initializing data tables, please wait...
+       Ref.: Dovciak M., Karas V. & Yaqoob T.
+             ApJS July 2004, Volume 153, Issue 1, pp. 205-221
+       ------------------------------------------------------
+        ...initializing finished
 ```
 
 ## Notes
@@ -117,7 +214,7 @@ Here's a quick run through, which is available as
 [scripts/example.py](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/example.py).
 The Examples section below has more details.
 
-```
+```python
 import numpy as np
 
 from matplotlib import pyplot as plt
