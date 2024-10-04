@@ -7,11 +7,11 @@ with minimal effort. The idea would then be that packages like
 [Sherpa](https://github/sherpa/sherpa) and
 [3ML](https://github.com/threeML/threeML) could build on this package.
 
-Well, that's the plan.
+Well, that's the plan. I **need** people to actually try it out to see if
+it is useful and worth moving forward.
 
 The home page for this module is
-[xspec-models-cxc](https://github.com/cxcsds/xspec-models-cxc) and
-have I mentioned that this is **very experimental**?
+[xspec-models-cxc](https://github.com/cxcsds/xspec-models-cxc).
 
 ## LICENSE
 
@@ -20,56 +20,60 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-You need to have XSPEC 12.12.1 to 12.14.1 installed (it may work with
-newer versions but this depends on how stable the XSPEC build is),
-have the `HEADAS` environment variable set up and probably have also
-sourced the `$HEADAS/headas-init.sh` or `$HEADAS/headas-init.csh`
-script.
+I am not putting this on [PyPI](https://pypi.org/) yet as there are a
+lot of things to work out first!
 
-This can use a full-blown XSPEC installation or a models-only build
-of XSPEC (including the CXC conda `xspec-modelsonly` distribution).
+You need to have the XSPEC model library installed. The easiest way to
+do this is to actually [build and install
+XSPEC](https://heasarc.gsfc.nasa.gov/lheasoft/) directly, but it
+should also work if you build *just* the XSPEC models library with the
+`--enable-xs-models-only` flag. An alternative is to use the
+CXC-provided `xspec-modelsonly` conda package that comes as part of
+the CXC CIAO distribution.
 
-With this you can
+Supported versions of XSPEC: 12.12.1 to 12.14.1.
+
+Newer versions may work, but there's no guarantee since HEASOFT does
+change the build from time to time.
+
+You need to have the `HEADAS` environment variable set up and probably
+have also sourced the `$HEADAS/headas-init.sh` or
+`$HEADAS/headas-init.csh` script (depending on exactly how XSPEC was
+built). With this you can
 
 ```
 % git clone https://github.com/cxcsds/xspec-models-cxc
 % cd xspec-models-cxc
 ```
 
+The code will guess whether to use g++ or clang++. This choice will be
+over-ridden by setting the CXX environment variable.
+
 I suggest creating a new venv or conda environment, and then install
-with the following (the `--log` option is useful when there are build
-failures, which there will be!):
+with the following:
 
 ```
-% pip install . --log=log
+% pip install .[test] --verbose
 ```
 
 The build requires both
 [pybind11](https://pybind11.readthedocs.io/en/stable/index.html) and
 [parse-xspec](https://github.com/cxcsds/parse_xspec) but they will be
-used automatically. Neither is required to use the compiled module.
+installed automatically if needed. Neither is required to use the
+compiled module.
 
-The code will guess whether to use g++ or clang++. This choice
-will be over-ridden by setting the CXX environment variable.
-
-Testing is done with either of
-
-```
-% pip install pytest
-
-% pip install .[test]
-```
-
-followed by
+Testing is done with:
 
 ```
 % pytest
 ```
 
-I am not putting this on [PyPI](https://pypi.org/) yet as there are a
-lot of things to work out first!
+## Notes
 
-## Notes (XSPEC 12.14.1)
+The `$HEADAS/../spectral/manager/model.dat` file is used to determine
+what models are available, and their parameters.
+
+### XSPEC 12.14.1
 
 Number of models: 293
 
@@ -89,7 +93,23 @@ Number of models: 293
 
 Number skipped:   1
 
-The `pileup` model is unsupported (as it uses the "acn" model type).
+The `pileup` model is unsupported (as it uses the "acn" model type, as are
+any of the mixing models, which we do not even try to support).
+
+### How do we evaluate a model
+
+The interface mirrors that used by the [XSPEC local
+model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixLocal.html)
+interface, but tweaked to support Python and NumPy.
+
+As shown below, each model is represented by a function in the
+`xspec_models_cxc` module which takes an `energies` and `pars`
+argument, and returns a NumPy array (there are some tweaks, such as
+the optional `spectrum` argument for those models using XFLT data,
+convolution models needing more arguments, and different ways to
+evaluate the model). More information is provided in the [Evaluating
+Models](https://github.com/cxcsds/xspec-models-cxc?tab=readme-ov-file#evaluating-models)
+section below.
 
 ## Quick run through
 
@@ -496,11 +516,16 @@ FILE
 
 Note that you can see the difference between a FORTRAN model such as
 `SSS_ice`, which deals with single-precision floats, and C/C++ models
-such as `TBabs`, which deal with double-precision floats.
+such as `TBabs`, which deal with double-precision floats. See the
+[EVALUATING
+MODELS](https://github.com/cxcsds/xspec-models-cxc?tab=readme-ov-file#evaluating-models)
+section below.
+
+## UTILITY ROUTINES
 
 With this we can do a few things:
 
-- what version of XSPEC are we using?
+### What version of XSPEC are we using?
 
 ```
 >>> help(x.get_version)
@@ -515,7 +540,7 @@ get_version(...) method of builtins.PyCapsule instance
 '12.14.1'
 ```
 
-- playing with the chatter setting
+### Playing with the chatter setting
 
 ```
 >>> help(x.chatter)
@@ -541,7 +566,7 @@ chatter(...) method of builtins.PyCapsule instance
 >>> x.chatter(10)
 ```
 
-- how about abundances tables?
+### How about abundances tables?
 
 ```
 >>> help(x.abundance)
@@ -572,7 +597,7 @@ abundance(...) method of builtins.PyCapsule instance
 It isn't clever enough to notice if you give it an unsupported
 abundance name.
 
-- what has atomic number 17?
+### What has atomic number 17?
 
 ```
 >>> help(x.elementName)
@@ -587,7 +612,7 @@ elementName(...) method of builtins.PyCapsule instance
 'Cl'
 ```
 
-- what is the abundance of an element?
+### What is the abundance of an element?
 
 ```
 >>> help(x.elementAbundance)
@@ -636,7 +661,25 @@ TypeError: elementAbundance(): incompatible function arguments. The following ar
 Invoked with: -4
 ```
 
-- can I evaluate a model?
+## EVALUATING MODELS
+
+Additive and multipicative models can either create a new output array
+on each call - such as
+
+```
+>>> y = x.apec(pars=pars, energies=egrid)
+```
+
+or they can re-use an output array (in a similar manner to the `out`
+argument of NumPy routines like
+[np.cumsum](https://numpy.org/doc/stable/reference/generated/numpy.cumsum.html)):
+
+```
+>>> y = np.zeros(egrid.size - 1)
+>>> yout = x.apec(pars=pars, energies=egrid, out=y)
+>>> yout is y
+True
+```
 
 ### APEC (additive, C++)
 
@@ -690,26 +733,6 @@ array([0.47038697, 0.21376409, 0.1247977 , 0.08182932])
 Note that the return values have units of photons/cm^2/s as this is an
 XSPEC [additive
 model](https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/Additive.html).
-
-### EVALUATING MODELS
-
-Additive and multipicative models can either create a new output array
-on each call - such as
-
-```
->>> y = x.apec(pars=pars, energies=egrid)
-```
-
-or they can re-use an output array (in a similar manner to the `out`
-argument of NumPy routines like
-[np.cumsum](https://numpy.org/doc/stable/reference/generated/numpy.cumsum.html)):
-
-```
->>> y = np.zeros(egrid.size - 1)
->>> yout = x.apec(pars=pars, energies=egrid, out=y)
->>> yout is y
-True
-```
 
 ### AGNSLIM (additive, FORTRAN)
 
