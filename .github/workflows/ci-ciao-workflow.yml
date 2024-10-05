@@ -1,0 +1,62 @@
+name: CIAO CI
+
+on:
+  push:
+    branches:
+    - main
+    tags:
+    - '*'
+  pull_request:
+
+# Reduces GH Action duplication:
+# Cancels the previous pipeline for this ref it is still running
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    defaults:
+      run:
+        # See https://github.com/marketplace/actions/setup-miniconda#use-a-default-shell
+        # to ensure we pass the "-el {0}" option
+        shell: bash -el {0}
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: Linux Minimum Setup (Python 3.12)
+            os: ubuntu-latest
+            python-version: 3.12
+            xspec-version: 12.14.0i
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4.1.1
+      with:
+        submodules: 'True'
+
+    - name: Install Miniforge
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: build
+        miniforge-version: latest
+        python-version: ${{ matrix.python-version }}
+        auto-update-conda: true
+
+    - name: Conda Setup
+      env:
+        PYTHONVER: ${{ matrix.python-version }}
+        XSPECVER: ${{ matrix.xspec-version }}
+      run: |
+        conda create --yes -n build -c conda-forge -c https://cxc.cfa.harvard.edu/conda/xspec "python=$PYTHONVER" "xspec-modelsonly=$XSPECVER"
+
+    - name: Install
+      run: |
+        pip install .[test] --verbose
+
+    - name: Test
+      run: |
+        pytest
