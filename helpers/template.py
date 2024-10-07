@@ -3,17 +3,18 @@
 Note that any error in creating the template will raise a
 SystemExit exception.
 
+At what point does it become worth using a templating system like
+Jinja2?
+
 """
 
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import pathlib
+from pathlib import Path
 import sys
 
-from parse_xspec.models import parse_xspec_model_description
-
-
-__all__ = ("apply", )
+from parse_xspec.models import ModelDefinition, \
+    parse_xspec_model_description
 
 
 def replace_term(txt, term, replace):
@@ -187,17 +188,6 @@ def apply_compiled(models, template, outfile):
     with outfile.open(mode='wt') as ofh:
         ofh.write(out)
 
-    return {'outfile': outfile,
-            'models': [m.name for m in models],
-            'additive': addmodels,
-            'multiplicative': mulmodels,
-            'convolution': conmodels,
-            'C++': cxxmodels,
-            'C': cmodels,
-            'f77': f77models,
-            'F77': f77models_dp,
-        }
-
 
 def apply_python(modelfile, models, template, xspec_version, outfile):
     """Convert the template for the Python code.
@@ -286,32 +276,11 @@ def apply_python(modelfile, models, template, xspec_version, outfile):
         ofh.write(out)
 
 
-# At what point does it become worth using a templating system like
-# Jinja2?
-#
-def apply(modelfile, xspec_version, out_dir):
-    """Parse the model.dat file and create the code.
+def find_models(modelfile: Path
+                ) -> tuple[list[ModelDefinition], list[ModelDefinition]]:
+    """Extract the models we can support from the model.dat file
 
-    Parameters
-    ----------
-    modelfile : pathlib.Path
-        The model.dat file.
-    xspec_version : str
-        The XSPEC library we are building against, including the patch
-        level.
-    out_dir : pathlib.Path
-        The directory where to write the output.
-
-    Returns
-    -------
-    models : dict
-        Information on the different model types that were found and
-        the files created.
-
-    Notes
-    -----
-    The templates/xspec.cxx file is used as the template.
-
+    The return values are the supported then unsupported models.
     """
 
     if not modelfile.is_file():
@@ -323,81 +292,69 @@ def apply(modelfile, xspec_version, out_dir):
         sys.stderr.write(f'ERROR: unable to parse model.dat file: {modelfile}\n')
         sys.exit(1)
 
-    # Filter to the ones we care about
-    models = [m for m in allmodels if m.modeltype in ['Add', 'Mul', 'Con']]
+    # Filter to the ones we care about.
+    #
+    models1 = []
+    unsupported = []
+    for m in allmodels:
+        if m.modeltype in ['Add', 'Mul', 'Con']:
+            models1.append(m)
+        else:
+            unsupported.append(m)
 
-    # For now filter out FORTRAN double-precision models as I don't
-    # know what to do with them (need to check against Sherpa).
+    # A sanity check (at present this should be all supported
+    # "language styles").
     #
     allowed_langs = ["Fortran - single precision",
                      "Fortran - double precision",
                      "C style",
                      "C++ style"]
-    models = [m for m in models if m.language in allowed_langs]
+    models = []
+    for m in models1:
+        if m.language in allowed_langs:
+            models.append(m)
+        else:
+            unsupported.append(m)
 
     if len(models) == 0:
         sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
         sys.exit(1)
 
-    if not out_dir.is_dir():
-        sys.stderr.write(f'ERROR: unable to find output directory: {out_dir}\n')
-        sys.exit(1)
+    return models, unsupported
 
-    # Create the code we want to compile
-    #
-    template_dir = pathlib.Path('template')
 
-    filename = pathlib.Path('xspec.cxx')
-    template = template_dir / filename
-    outfile = out_dir / filename
-    out_dir.mkdir(exist_ok=True)
-    info = apply_compiled(models, template, outfile)
+def report(models, unsupported):
+    """Report on what models we are using and not using."""
 
-    filename = pathlib.Path('__init__.py')
-    template = template_dir / filename
-    out_dir = out_dir / 'xspec_models_cxc'
-    outfile = out_dir / filename
-    out_dir.mkdir(exist_ok=True)
-    apply_python(modelfile, models, template, xspec_version, outfile)
-
-    # It looks like info['models'] does not contain repeated values.
-    #
     print("###############################################")
-    print(f"Number of supported models:  {len(info['models'])}")
+    print(f"Number of supported models:     {len(models)}")
+    print(f"          unsupported:          {len(unsupported)}")
+    print("")
 
-    # Summarize. We can't use the length of these as they may include
-    # repeated models (e.g. because we provide different ways to
-    # access the model). Hence the conversion to a set first (as the
-    # names are the same).
-    #
-    def count(label, value=None):
-        if value is None:
-            value = label
+    def count_type(label, mtype):
+        matches = [m for m in models if m.modeltype == mtype]
+        print(f"   {label:27s}  {len(matches)}")
 
-        print(f"   {label:20s}  {len(set(info[value]))}")
+    def count_lang(label):
+        matches = [m for m in models if m.language == label]
+        print(f"   {label:27s}  {len(matches)}")
 
-    count("additive")
-    count("multiplicative")
-    count("convolution")
-    count("C++")
-    count("C")
-    count("FORTRAN (sp)", "f77")
-    count("FORTRAN (dp)", "F77")
+    count_type("additive", "Add")
+    count_type("multiplicative", "Mul")
+    count_type("convolution", "Con")
+    print("")
 
-    nskip = len(allmodels) - len(info['models'])
-    if nskip > 0:
-        print("")
-        print(f"   Number skipped: {nskip}")
+    count_lang("C++ style")
+    count_lang("C style")
+    count_lang("Fortran - single precision")
+    count_lang("Fortran - double precision")
+    print("")
 
-        assert len(info['models']) == len(models)
-
-        allknown = set(m.name for m in allmodels)
-        known = set(m.name for m in models)
-        for i, unknown in enumerate(sorted(allknown.difference(known)), 1):
-            print(f"      {i}. {unknown}")
+    if len(unsupported) > 0:
+        print("Unsupported:")
+        for i, mdl in enumerate(unsupported, 1):
+            print(f"   {i}. {mdl.name} - {mdl.modeltype}/{mdl.language}")
 
         print("")
 
     print("###############################################")
-
-    return info

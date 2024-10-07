@@ -1,10 +1,10 @@
 *~
 build/
 *.egg-info/
-src/xspec_models_cxc/_compiled.*.so
-src/xspec_models_cxc/__init__.py
 __pycache__
 
-src/xspec.cxx
+src/xspec_models_cxc/_compiled.*.so
+src/xspec_models_cxc/xspec.cxx
+src/xspec_models_cxc/__init__.py
 
 helpers/report_xspec_version
