@@ -1372,8 +1372,8 @@ In [12]: %timeit y2 = x.bvapec_(energies=egrid2, pars=pars2, out=out2)
 7.13 ms ± 26.3 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 ```
 
-So, for this simple case it doesn't seem worth usnig the `RealArray`
-versino (but perhaps not returning the array and other changes could
+So, for this simple case it doesn't seem worth using the `RealArray`
+version (but perhaps not returning the array and other changes could
 alter this).
 
 # Convenience versus speed
@@ -1423,4 +1423,5 @@ module does some of the following:
   XSPEC 12.14.1 is 197 of the 293 models we support) are handled
   using the C interface. To see if this is a problem I have added
   (in version 0.0.24) the RealArray interface discussed above,
-  but it doesn't seem to make much difference.
+  but it doesn't seem to make much difference, although this claim
+  needs to be tested.
