@@ -5,7 +5,8 @@
 Potential build improvements, including support for using the CXC
 xspec-modelsonly conda package for providing XSPEC, updates to the
 build infrastructure to use more-modern Python packaging techniques,
-and (hopefully) support for the macOS platform.
+and support for the macOS platform. I have added GitHub Actions to
+run tests with Python 3.12 for Linux and macOS ARM systems.
 
 ## 0.0.26 - 0.0.29
 
