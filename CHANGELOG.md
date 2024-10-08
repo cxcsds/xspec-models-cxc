@@ -1,5 +1,13 @@
 # Changes in xspec-models-cxc
 
+## 0.0.31
+
+Internal minor clean-up of the configuration code: remove tracking
+of the model.dat file from the MANIFEST, avoid an un-used import
+from the refactoring done in 0.0.30, and move the include directory
+into xspec_models_cxc/ so it is more-obvious why is is installed
+(although it probably should be done more as some form of a data-file).
+
 ## 0.0.30
 
 Potential build improvements, including support for using the CXC

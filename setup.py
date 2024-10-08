@@ -40,10 +40,8 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 #
 sys.path.append(os.path.dirname(__file__))
 
-from helpers import template
-
 # How can we best set this up?
-__version__ = "0.0.30"
+__version__ = "0.0.31"
 
 
 def helper(script: str, *args: str) -> list[str]:
@@ -129,11 +127,8 @@ print(f"Building against XSPEC: '{xspec_version}'")
 
 macros = [('VERSION_INFO', __version__)]
 
-out_dir = Path('src')
+out_dir = Path('src/xspec_models_cxc')
 
-# Note: we need access to the src/include directory - can we just
-# hard-code this path or access it via some setuptools method?
-#
 include_dir = out_dir / 'include'
 if not include_dir.is_dir():
     sys.stderr.write(f'ERROR: unable to find {include_dir}/')
@@ -144,8 +139,8 @@ if not include_dir.is_dir():
 # Process the model.dat file and the templates to create the module
 # (C++ and Python).
 #
-compiled_code = out_dir / 'xspec_models_cxc' / 'xspec.cxx'
-python_code = out_dir / 'xspec_models_cxc' / '__init__.py'
+compiled_code = out_dir / 'xspec.cxx'
+python_code = out_dir / '__init__.py'
 
 helper("apply_templates.py", str(modeldat), xspec_version,
        str(compiled_code), str(python_code))
@@ -157,8 +152,7 @@ helper("apply_templates.py", str(modeldat), xspec_version,
 ext_modules = [
     Pybind11Extension("xspec_models_cxc._compiled",
                       [str(compiled_code)],
-                      depends=[str(modeldat),
-                               str('template/xspec.cxx')  # is this useful?
+                      depends=[str('template/xspec.cxx')  # is this useful?
                       ],
                       cxx_std=11,
                       include_dirs=[str(include_dir),
