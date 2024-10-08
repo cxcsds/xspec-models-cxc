@@ -11,8 +11,10 @@ include LICENSE
 include README.md
 include scripts/doc-example.py
 include scripts/example.py
+include scripts/report_models.py
+include scripts/smaug.py
 include scripts/example-additive.png
 include scripts/example-multiplicative.png
 include scripts/example-convolution.png
 
-include src/include/xspec_models_cxc.hh
+include src/xspec_models_cxc/include/xspec_models_cxc.hh
