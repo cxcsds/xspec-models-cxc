@@ -27,18 +27,25 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Linux (Python 3.12)
-            os: ubuntu-latest
-            python-version: 3.12
-            xspec-version: 12.14.0i
-            xspec-channel: https://cxc.cfa.harvard.edu/conda/xspec
+          - name: "Linux (Python 3.12)"
+            os: "ubuntu-latest"
+            python-version: "3.12"
+            xspec-version: "12.14.0i"
+            xspec-channel: "https://cxc.cfa.harvard.edu/conda/xspec"
             conda-compilers: "gcc_linux-64 gxx_linux-64 gfortran_linux-64"
 
-          - name: macOS ARM (Python 3.12)
-            os: macos-latest
-            python-version: 3.12
-            xspec-version: 12.13.1e
-            xspec-channel: https://cxc.cfa.harvard.edu/conda/ciao
+          - name: "Linux (Python 3.10)"
+            os: "ubuntu-latest"
+            python-version: "3.10"
+            xspec-version: "12.14.0i"
+            xspec-channel: "https://cxc.cfa.harvard.edu/conda/xspec"
+            conda-compilers: "gcc_linux-64 gxx_linux-64 gfortran_linux-64"
+
+          - name: "macOS ARM (Python 3.12)"
+            os: "macos-latest"
+            python-version: "3.12"
+            xspec-version: "12.13.1e"
+            xspec-channel: "https://cxc.cfa.harvard.edu/conda/ciao"
             conda-compilers: "clang_osx-arm64 clangxx_osx-arm64 gfortran_osx-arm64"
 
     steps:
