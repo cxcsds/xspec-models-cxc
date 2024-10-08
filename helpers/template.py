@@ -12,12 +12,15 @@ Jinja2?
 
 from pathlib import Path
 import sys
+from typing import Sequence
 
 from parse_xspec.models import ModelDefinition, \
     parse_xspec_model_description
 
+import utils_template
 
-def replace_term(txt, term, replace):
+
+def replace_term(txt: str, term: str, replace: str) -> str:
     """Replace the first term with replace in txt"""
 
     idx = txt.find(term)
@@ -28,168 +31,47 @@ def replace_term(txt, term, replace):
     return txt[:idx] + replace + txt[idx + len(term):]
 
 
-def apply_compiled(models, template, outfile):
+def apply_compiled(models: Sequence[ModelDefinition],
+                   template: Path,
+                   outfile: Path
+                   ) -> None:
     """Convert the template for the compiled code."""
 
-    # Ugly information flow here
     addmodels = []
     mulmodels = []
     conmodels = []
-    f77models = []
-    f77models_dp = []
-    cxxmodels = []
-    cmodels = []
-
-    def get_npars(npars):
-        if npars == 0:
-            return "no parameters"
-        if npars == 1:
-            return "1 parameter"
-
-        return f"{npars} parameters"
-
-    def wrapmodel_basic(model, npars, call, text,
-                        inplace=False,
-                        convolution=False):
-        """Create the m.def line for a single model"""
-
-        assert not(inplace and convolution)
-
-        out = f'    m.def("{model.name}", {call}'
-
-        if model.language == 'Fortran - single precision':
-            out += f'_f<{model.funcname}_'
-            f77models.append(model.funcname)
-        elif model.language == 'Fortran - double precision':
-            out += F'_F<{model.funcname}_'
-            f77models_dp.append(model.funcname)
-        elif model.language == 'C++ style':
-            out += f'_C<C_{model.funcname}'
-            cxxmodels.append(model.funcname)
-        elif model.language == 'C style':
-            out += f'_C<{model.funcname}'  # should this be 'c_{model.funcname}' (not for compmag...)?
-            cmodels.append(model.funcname)
+    mstrs = []
+    for model in models:
+        mdef, mtype, mdesc = utils_template.wrapmodel_compiled(model)
+        if mtype == "Add":
+            addmodels.append(mdesc)
+        elif mtype == "Mul":
+            mulmodels.append(mdesc)
+        elif mtype == "Con":
+            conmodels.append(mdesc)
         else:
-            assert False, (model.name, model.funcname, model.language)
+            assert False  # should not happen
 
-        out += f', {npars}>, "{text}",'
-        out += '"pars"_a,"energies"_a,'
-        if convolution:
-            out += '"model"_a,'
-
-        if inplace:
-            out += '"out"_a,'
-
-        out += '"spectrum"_a=1'
-        if not model.language.startswith('Fortran'):
-            out += ',"initStr"_a=""'
-
-        if inplace or convolution:
-            out += ',py::return_value_policy::reference'
-
-        out += ');'
-        return out
-
-    def wrapmodel_cxx(model, npars, text):
-        """Make the C++ version available as name_"""
-
-        if model.language != 'C++ style':
-            return ''
-
-        out = '\n'
-        out += f'    m.def("{model.name}_", xspec_models_cxc::wrapper_inplace_CXX<'
-        out += f'{model.funcname}, {npars}>, "{text}",'
-        out += '"pars"_a,"energies"_a,"out"_a,"spectrum"_a=1,'
-        out += '"initStr"_a=""'
-        out += ',py::return_value_policy::reference'
-        out += ');'
-        return out
-
-    def wrapmodel_add(model, npars):
-        """What is the m.def line for this additive model?"""
-
-        addmodels.append((model.name, npars))
-
-        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper',
-                              f'The XSPEC additive {model.name} model ({get_npars(npars)}).')
-        out += '\n'
-        out += wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_inplace',
-                               f'The XSPEC additive {model.name} model ({get_npars(npars)}); inplace.',
-                               inplace=True)
-
-        out += wrapmodel_cxx(model, npars,
-                             f"The XSPEC additive {model.name} model ({get_npars(npars)}); RealArray, inplace.")
-
-        return out
-
-    def wrapmodel_mul(model, npars):
-        """What is the m.def line for this multiplicative model?"""
-
-        mulmodels.append((model.name, npars))
-
-        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper',
-                              f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}).')
-        out += '\n'
-        out += wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_inplace',
-                               f'The XSPEC multiplicative {model.name} model ({get_npars(npars)}); inplace.',
-                               inplace=True)
-
-        out += wrapmodel_cxx(model, npars,
-                             f"The XSPEC multiplicative {model.name} model ({get_npars(npars)}); RealArray, inplace.")
-
-        return out
-
-    def wrapmodel_con(model, npars):
-        """What is the m.def line for this convolution model?"""
-
-        conmodels.append((model.name, npars))
-
-        out = wrapmodel_basic(model, npars, 'xspec_models_cxc::wrapper_con',
-                              f'The XSPEC convolution {model.name} model ({get_npars(npars)}); inplace.',
-                              convolution=True)
-
-        return out
-
-    def wrapmodel(model):
-        """What is the m.def line for this model?"""
-
-        npars = len(model.pars)
-        if model.modeltype == 'Add':
-            return wrapmodel_add(model, npars)
-
-        if model.modeltype == 'Mul':
-            return wrapmodel_mul(model, npars)
-
-        if model.modeltype == 'Con':
-            return wrapmodel_con(model, npars)
-
-        assert False, model.modeltype
-
-    mstrs = [wrapmodel(m) for m in models]
-
-    def hdr(arg):
-        (model, npars) = arg  # apparently I can't write Haskell pattern-matching in Python
-        return f"{model} - {get_npars(npars)}."
+        mstrs.append(mdef)
 
     with template.open(mode='rt') as ifh:
         out = ifh.read()
 
-        repl = [hdr(m) for m in addmodels]
-        out = replace_term(out, '@@ADDMODELS@@', '\n'.join(repl))
-
-        repl = [hdr(m) for m in mulmodels]
-        out = replace_term(out, '@@MULMODELS@@', '\n'.join(repl))
-
-        repl = [hdr(m) for m in conmodels]
-        out = replace_term(out, '@@CONMODELS@@', '\n'.join(repl))
-
+        out = replace_term(out, '@@ADDMODELS@@', '\n'.join(addmodels))
+        out = replace_term(out, '@@MULMODELS@@', '\n'.join(mulmodels))
+        out = replace_term(out, '@@CONMODELS@@', '\n'.join(conmodels))
         out = replace_term(out, '@@MODELS@@', '\n'.join(mstrs))
 
     with outfile.open(mode='wt') as ofh:
         ofh.write(out)
 
 
-def apply_python(modelfile, models, template, xspec_version, outfile):
+def apply_python(modelfile: Path,
+                 models: Sequence[ModelDefinition],
+                 template: Path,
+                 xspec_version: str,
+                 outfile: Path
+                 ) -> None:
     """Convert the template for the Python code.
 
     xspec_version : str
@@ -198,72 +80,10 @@ def apply_python(modelfile, models, template, xspec_version, outfile):
 
     """
 
-    def to_model(mtype):
-        return {'Add': 'ModelType.Add',
-                'Mul': 'ModelType.Mul',
-                'Con': 'ModelType.Con' }[mtype]
-
-    def to_lang(langtype):
-        return {'C++ style': 'LanguageStyle.CppStyle8',
-                'C style': 'LanguageStyle.CStyle8',
-                'Fortran - single precision': 'LanguageStyle.F77Style4',
-                'Fortran - double precision': 'LanguageStyle.F77Style8'}[langtype]
-
-    def to_ptype(ptype):
-        # We don't support periodic yet
-        return {'Basic': 'ParamType.Default',
-                'Switch': 'ParamType.Switch',
-                'Scale': 'ParamType.Scale',
-                '?': 'ParamType.Periodic'}[ptype]
-
     mstrs = []
     for model in models:
-        mtype = to_model(model.modeltype)
-        lang = to_lang(model.language)
-        out = [f"    '{model.name}': XSPECModel(modeltype={mtype}",
-               f"name='{model.name}'",
-               f"funcname='{model.funcname}'",
-               f"language={lang}",
-               f"elo={model.elo}",
-               f"ehi={model.ehi}"]
-
-        pars = []
-        for p in model.pars:
-            ps = [f"XSPECParameter(paramtype={to_ptype(p.paramtype)}"]
-            ps.append(f"name='{p.name}'")
-            ps.append(f"default={p.default}")
-            if p.units is not None:
-                ps.append(f"units='{p.units}'")
-
-            try:
-                if p.frozen:
-                    ps.append("frozen=True")
-            except AttributeError:
-                # Assume that if there's no frozen attribute it is
-                # always frozen
-                ps.append("frozen=True")
-
-            for t in ['soft', 'hard']:
-                for r in ['min', 'max']:
-                    attr = getattr(p, f'{t}{r}')
-                    if attr is not None:
-                        ps.append(f"{t}{r}={attr}")
-
-            if p.delta is not None:
-                ps.append(f"delta={p.delta}")
-
-            pars.append(', '.join(ps) + ')')
-
-        pars = ', '.join(pars)
-        out.append(f"parameters=[{pars}]")
-
-        if len(model.flags) > 0 and model.flags[0] > 0:
-            out.append("use_errors=True")
-
-        if len(model.flags) > 1 and model.flags[1] > 0:
-            out.append("can_cache=False")
-
-        mstrs.append(', '.join(out) + ')')
+        mname, mdef = utils_template.wrapmodel_python(model)
+        mstrs.append(f"    '{mname}': {mdef}")
 
     with template.open(mode='rt') as ifh:
         out = ifh.read()
@@ -292,35 +112,12 @@ def find_models(modelfile: Path
         sys.stderr.write(f'ERROR: unable to parse model.dat file: {modelfile}\n')
         sys.exit(1)
 
-    # Filter to the ones we care about.
-    #
-    models1 = []
-    unsupported = []
-    for m in allmodels:
-        if m.modeltype in ['Add', 'Mul', 'Con']:
-            models1.append(m)
-        else:
-            unsupported.append(m)
-
-    # A sanity check (at present this should be all supported
-    # "language styles").
-    #
-    allowed_langs = ["Fortran - single precision",
-                     "Fortran - double precision",
-                     "C style",
-                     "C++ style"]
-    models = []
-    for m in models1:
-        if m.language in allowed_langs:
-            models.append(m)
-        else:
-            unsupported.append(m)
-
-    if len(models) == 0:
+    supported, unsupported = utils_template.select_models(allmodels)
+    if len(supported) == 0:
         sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
         sys.exit(1)
 
-    return models, unsupported
+    return supported, unsupported
 
 
 def report(models, unsupported):

@@ -147,6 +147,16 @@ helper("apply_templates.py", str(modeldat), xspec_version,
 
 ######################################################################
 #
+# Copy over the utils code
+#
+utils_in = Path('template') / 'utils.py'
+utils_template = Path('helpers') / 'utils_template.py'
+utils_out = out_dir / 'utils.py'
+helper("apply_utils.py", str(utils_in), str(utils_template),
+       str(utils_out))
+
+######################################################################
+#
 # Create the extension module.
 #
 ext_modules = [

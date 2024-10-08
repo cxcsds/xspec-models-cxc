@@ -2,11 +2,20 @@
 
 ## 0.0.31
 
+Drop support for Python 3.9 as I do not have time or energy to
+test with old versions. If this is a problem then please submit
+the necessary fixes.
+
 Internal minor clean-up of the configuration code: remove tracking
 of the model.dat file from the MANIFEST, avoid an un-used import
 from the refactoring done in 0.0.30, and move the include directory
 into xspec_models_cxc/ so it is more-obvious why is is installed
 (although it probably should be done more as some form of a data-file).
+
+The xspec_models_cxc.utils module has been added. This is intended
+to support XSPEC user models, so that the same logic that is used
+to build this module can be used with user models, but this has
+not yet been developed.
 
 ## 0.0.30
 
