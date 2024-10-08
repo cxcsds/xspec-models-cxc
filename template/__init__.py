@@ -17,6 +17,8 @@ There are three types of symbols in this package:
    cosmology (`cosmology`), and the chatter level (`chatter`).
 3. routines about the models: `info` and `list_models`.
 
+See also `xspec_models_cxc.utils`.
+
 Examples
 --------
 
