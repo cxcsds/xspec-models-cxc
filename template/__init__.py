@@ -17,7 +17,7 @@ There are three types of symbols in this package:
    cosmology (`cosmology`), and the chatter level (`chatter`).
 3. routines about the models: `info` and `list_models`.
 
-See also `xspec_models_cxc.utils`.
+See also `xspec_models_cxc_helpers`.
 
 Examples
 --------
@@ -133,8 +133,10 @@ References
 
 from dataclasses import dataclass
 from enum import Enum, auto
+from importlib import resources
 import logging
-from typing import List, Optional, Sequence
+from pathlib import Path
+from typing import List, Sequence
 
 try:
     from ._compiled import *
@@ -184,14 +186,14 @@ class XSPECParameter:
     paramtype: ParamType
     name: str
     default: float
-    units: Optional[str] = None
+    units: str | None = None
     frozen: bool = False
     # Would it be better to just have limits = [hardmin, softmin, softmax, hardmax]?
-    softmin: Optional[float] = None
-    softmax: Optional[float] = None
-    hardmin: Optional[float] = None
-    hardmax: Optional[float] = None
-    delta: Optional[float] = None
+    softmin: float | None = None
+    softmax: float | None = None
+    hardmin: float | None = None
+    hardmax: float | None = None
+    delta: float | None = None
 
 
 @dataclass
@@ -207,6 +209,13 @@ class XSPECModel:
     parameters: Sequence[XSPECParameter]
     use_errors: bool = False
     can_cache: bool = True
+
+
+def get_include_path() -> Path:
+    """Return the location of the C++ include file."""
+
+    path = resources.files("xspec_models_cxc.include")
+    return path / "xspec_models_cxc.hh"
 
 
 # The model.dat file used to create this interface
@@ -264,9 +273,9 @@ def info(model: str) -> XSPECModel:
     return out
 
 
-# Do we need Optional here?
-def list_models(modeltype: Optional[ModelType] = None,
-                language: Optional[LanguageStyle] = None) -> List[str]:
+def list_models(modeltype: ModelType | None = None,
+                language: LanguageStyle | None = None
+                ) -> List[str]:
     """Returns the names of XSPEC models from the model.dat file.
 
     This returns the information on the model as taken from the XSPEC

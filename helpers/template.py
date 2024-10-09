@@ -17,7 +17,7 @@ from typing import Sequence
 from parse_xspec.models import ModelDefinition, \
     parse_xspec_model_description
 
-import utils_template
+import xspec_models_cxc_helpers as xu
 
 
 def replace_term(txt: str, term: str, replace: str) -> str:
@@ -42,7 +42,7 @@ def apply_compiled(models: Sequence[ModelDefinition],
     conmodels = []
     mstrs = []
     for model in models:
-        mdef, mtype, mdesc = utils_template.wrapmodel_compiled(model)
+        mdef, mtype, mdesc = xu.wrapmodel_compiled(model)
         if mtype == "Add":
             addmodels.append(mdesc)
         elif mtype == "Mul":
@@ -82,7 +82,7 @@ def apply_python(modelfile: Path,
 
     mstrs = []
     for model in models:
-        mname, mdef = utils_template.wrapmodel_python(model)
+        mname, mdef = xu.wrapmodel_python(model)
         mstrs.append(f"    '{mname}': {mdef}")
 
     with template.open(mode='rt') as ifh:
@@ -112,7 +112,7 @@ def find_models(modelfile: Path
         sys.stderr.write(f'ERROR: unable to parse model.dat file: {modelfile}\n')
         sys.exit(1)
 
-    supported, unsupported = utils_template.select_models(allmodels)
+    supported, unsupported = xu.select_models(allmodels)
     if len(supported) == 0:
         sys.stderr.write(f'ERROR: unable to find any models in: {modelfile}\n')
         sys.exit(1)

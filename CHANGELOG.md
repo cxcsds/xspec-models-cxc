@@ -1,5 +1,10 @@
 # Changes in xspec-models-cxc
 
+## 0.1.0
+
+Separate out some logic to xspec-models-cxc-helper, which has
+been released to PyPI. As has this module.
+
 ## 0.0.31
 
 Drop support for Python 3.9 as I do not have time or energy to

@@ -41,7 +41,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 sys.path.append(os.path.dirname(__file__))
 
 # How can we best set this up?
-__version__ = "0.0.31"
+__version__ = "0.1.0"
 
 
 def helper(script: str, *args: str) -> list[str]:
@@ -144,16 +144,6 @@ python_code = out_dir / '__init__.py'
 
 helper("apply_templates.py", str(modeldat), xspec_version,
        str(compiled_code), str(python_code))
-
-######################################################################
-#
-# Copy over the utils code
-#
-utils_in = Path('template') / 'utils.py'
-utils_template = Path('helpers') / 'utils_template.py'
-utils_out = out_dir / 'utils.py'
-helper("apply_utils.py", str(utils_in), str(utils_template),
-       str(utils_out))
 
 ######################################################################
 #
