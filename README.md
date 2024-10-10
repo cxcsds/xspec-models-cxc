@@ -20,9 +20,6 @@ developed for Sherpa and the CIAO contrib packages.
 
 ## How to build
 
-I am not putting this on [PyPI](https://pypi.org/) yet as there are a
-lot of things to work out first!
-
 You need to have the XSPEC model library installed. The easiest way to
 do this is to actually [build and install
 XSPEC](https://heasarc.gsfc.nasa.gov/lheasoft/) directly, but it
@@ -39,22 +36,27 @@ is not guaranteed either!
 
 You need to have the `HEADAS` environment variable set up and probably
 have also sourced the `$HEADAS/headas-init.sh` or
-`$HEADAS/headas-init.csh` script. Then you can
-
-```
-% git clone https://github.com/cxcsds/xspec-models-cxc
-% cd xspec-models-cxc
-```
+`$HEADAS/headas-init.csh` script. I also **strongly** suggest using
+a new venv or conda environment!
 
 The code will guess whether to use g++ or clang++. This choice will be
 over-ridden by setting the CXX environment variable (useful for cases
 where XSPEC was built with clang but you also have gcc installed, as
 the install defaults to g++ in this case).
 
-I suggest creating a new venv or conda environment, and then install
-with the following:
+Then you can either
 
 ```
+% pip install xspec_models_cxc[test] --verbose
+```
+
+(the `--verbose` is in case there's an error, as the default information
+you get from `pip` on a failue is generally less-than useful), **or** you
+can try
+
+```
+% git clone https://github.com/cxcsds/xspec-models-cxc
+% cd xspec-models-cxc
 % pip install .[test] --verbose
 ```
 
@@ -63,6 +65,8 @@ The build requires both
 [parse-xspec](https://github.com/cxcsds/parse_xspec) but they will be
 installed automatically if needed. Neither is required to use the
 compiled module.
+
+### How to test
 
 Testing is done with (the actual output depends on the version of
 XSPEC installed and the version of this module):
@@ -239,7 +243,7 @@ def add_version():
              horizontalalignment="left")
 
 
-egrid = np.arange(0.1, 11, 0.01)
+egrid = np.arange(0.1, 20, 0.01)
 emid = (egrid[:-1] + egrid[1:]) / 2
 
 for kT in [0.1, 0.3, 0.5, 1, 3, 5, 10]:
@@ -304,7 +308,7 @@ The screen output is just
 
 ```
 XSPEC version:  12.14.1d
-Module version: 0.0.30
+Module version: 0.1.0
 ```
 
 and the plots are
@@ -1108,12 +1112,9 @@ We can plot this:
 >>> plt.ylabel('Photons/cm$^2$/s')
 ```
 
-to create
+to create (although this is a slightly-more-complex version):
 
 ![smaug model](https://raw.githubusercontent.com/cxcsds/xspec-models-cxc/main/scripts/smaug.png "smaug model")
-
-Note that in XSPEC 12.12.0 this crashed, but it now seems to work in
-XSPEC 12.12.1.
 
 ### CFLUX convolution model (convolution, C++)
 

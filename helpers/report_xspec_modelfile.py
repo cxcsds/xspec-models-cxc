@@ -6,28 +6,6 @@
 
 """
 
-from pathlib import Path
-import os
-import sys
+import xspec_models_cxc_helpers as xu
 
-HEADAS_ENV = os.getenv('HEADAS')
-if HEADAS_ENV is None:
-    sys.stderr.write('##################################################\n')
-    sys.stderr.write('ERROR: unable to find HEADAS environment variable.\n')
-    sys.stderr.write('##################################################\n')
-    sys.exit(1)
-
-HEADAS = Path(HEADAS_ENV)
-
-modelfile = HEADAS / '../spectral/manager/model.dat'
-modelfile = modelfile.resolve()
-
-if not modelfile.is_file():
-    sys.stderr.write('##################################################\n')
-    sys.stderr.write('ERROR: model.dat file not found:\n')
-    sys.stderr.write(str(modelfile) + '\n')
-    sys.stderr.write('##################################################\n')
-    sys.exit(1)
-
-print(str(modelfile))
-sys.exit(0)
+print(xu.get_xspec_model_path())

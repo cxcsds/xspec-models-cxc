@@ -37,15 +37,24 @@ y2 = x.smaug(energies=egrid, pars=pars, spectrum=2)
 
 emid = (egrid[:-1] + egrid[1:]) / 2
 
-plt.plot(emid, y1, label='Bin 1')
-plt.plot(emid, y2, label='Bin 2')
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, height_ratios=[2, 1])
 
-plt.yscale('log')
+ax1.plot(emid, y1, label='Bin 1')
+ax1.plot(emid, y2, label='Bin 2')
 
-plt.legend()
+ax1.set_yscale('log')
 
-plt.xlabel('Energy (keV)')
-plt.ylabel('Photons/cm$^2$/s')
+ax1.legend()
+
+ax1.set_ylabel('Photons/cm$^2$/s')
+
+ax2.plot(emid, y2 / y1, label='Bin 2 / Bin 1')
+
+ax2.set_xlabel('Energy (keV)')
+ax2.set_ylabel('Ratio')
+
+ax2.legend()
+
 add_version()
 
 plt.savefig('smaug.png')

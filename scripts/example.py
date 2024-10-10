@@ -24,7 +24,7 @@ def add_version():
              horizontalalignment="left")
 
 
-egrid = np.arange(0.1, 11, 0.01)
+egrid = np.arange(0.1, 20, 0.01)
 emid = (egrid[:-1] + egrid[1:]) / 2
 
 for kT in [0.1, 0.3, 0.5, 1, 3, 5, 10]:
