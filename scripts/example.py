@@ -43,27 +43,32 @@ add_version()
 
 plt.savefig('example-additive.png')
 
-plt.clf()
+plt.close()
+
+x.abundance('wilm')
+x.cross_section('vern')
+
 
 for nH in [0.01, 0.05, 0.1, 0.5, 1]:
-    y = x.phabs(energies=egrid, pars=[nH])
+    y = x.TBabs(energies=egrid, pars=[nH])
     plt.plot(emid, y, label=f'nH={nH}', alpha=0.6)
 
 plt.xscale('log')
 plt.yscale('log')
+plt.ylim(1e-14, 2)
 
 plt.legend()
 
 plt.xlabel('Energy (keV)')
-plt.ylabel('Relative')
-plt.title('PHABS model')
+plt.ylabel('Transmission')
+plt.title('TBABS model')
 add_version()
 
 plt.savefig('example-multiplicative.png')
 
-plt.clf()
+plt.close()
 
-model = x.phabs(energies=egrid, pars=[0.05]) * x.apec(energies=egrid, pars=[0.5, 1, 0])
+model = x.TBabs(energies=egrid, pars=[0.05]) * x.apec(energies=egrid, pars=[0.5, 1, 0])
 plt.plot(emid, model, label='Unconvolved', c='k', alpha=0.8)
 
 for pars in [[0.1, 0], [0.2, -1], [0.2, 1]]:
@@ -78,7 +83,8 @@ plt.legend()
 
 plt.xlabel('Energy (keV)')
 plt.ylabel('Photon/cm$^2$/s')
-plt.title('GSMOOTH(PHABS * APEC)')
+plt.title('GSMOOTH(TBABS * APEC)')
 add_version()
 
 plt.savefig('example-convolution.png')
+plt.close()
