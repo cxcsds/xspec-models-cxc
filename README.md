@@ -61,10 +61,11 @@ can try
 ```
 
 The build requires both
-[pybind11](https://pybind11.readthedocs.io/en/stable/index.html) and
+[nanobind](https://nanobind.readthedocs.io/en/latest/index.html) and
 [parse-xspec](https://github.com/cxcsds/parse_xspec) but they will be
 installed automatically if needed. Neither is required to use the
-compiled module.
+compiled module (nanobind requires C++17, whereas the pybind11 version
+this module previously used could build with C++11).
 
 ### How to test
 
@@ -802,16 +803,17 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 >>> help(x.apec)
 Help on built-in function apec in module xspec_models_cxc:
 
-apec(...) method of builtins.PyCapsule instance
-    apec(*args, **kwargs)
+apec = <nanobind.nb_func object>
+    apec(pars: numpy.ndarray, energies: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> numpy.ndarray[dtype=float64]
+    apec(pars: numpy.ndarray, energies: numpy.ndarray, out: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> object
+
     Overloaded function.
 
-    1. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '')
--> numpy.ndarray[numpy.float64]
+    1. ``apec(pars: numpy.ndarray, energies: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> numpy.ndarray[dtype=float64]``
 
     The XSPEC additive apec model (3 parameters).
 
-    2. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+    2. ``apec(pars: numpy.ndarray, energies: numpy.ndarray, out: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> object``
 
     The XSPEC additive apec model (3 parameters); inplace.
 
@@ -1264,7 +1266,7 @@ all have a "_" variant such as
 >>> help(x.TBabs_)
 Help on built-in function TBabs_ in module xspec_models_cxc._compiled:
 
-TBabs_(...) method of builtins.PyCapsule instance
+TBabs_ = <nanobind.nb_func object>
     TBabs_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
 
     The XSPEC multiplicative TBabs model (1 parameter); RealArray, inplace.
@@ -1276,29 +1278,28 @@ which use this interface. The `x.RealArray` type
 >>> help(x.RealArray)
 Help on class RealArray in module xspec_models_cxc._compiled:
 
-class RealArray(pybind11_builtins.pybind11_object)
- |  Method resolution order:
- |      RealArray
- |      pybind11_builtins.pybind11_object
- |      builtins.object
+class RealArray(builtins.object)
+ |  RealArray(*args, **kwargs)
  |
  |  Methods defined here:
  |
  |  __getitem__(...)
- |      __getitem__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> float
+ |      __getitem__(self, arg: int, /) -> float
  |
  |  __init__(...)
- |      __init__(*args, **kwargs)
+ |      __init__(self, arg: int, /) -> None
+ |      __init__(self, arg: xspec_models_cxc._compiled.RealArray, /) -> None
+ |      __init__(self, arg: collections.abc.Sequence, /) -> None
+ |
  |      Overloaded function.
  |
- |      1. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> None
+ |      1. ``__init__(self, arg: int, /) -> None``
  |
  |      Create an array of n zeros.
  |
- |      2. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: numpy.ndarray[numpy.float64]) -> None
+ |      2. ``__init__(self, arg: xspec_models_cxc._compiled.RealArray, /) -> None``
  |
- |      Copy the data into an array.
- |
+ |      Create a copy of an existing array.
 ...
 ```
 
@@ -1411,6 +1412,7 @@ module does some of the following:
   - The convolution models only support the inplace varsion.
   - Use of the out argument is easy to mess up - see
     https://github.com/cxcsds/xspec-models-cxc/issues/14
+
 
 - the different XSPEC models have different "preferred" interfaces
   (FORTRAN, C, or C++) and  using the correct one should reduce the
