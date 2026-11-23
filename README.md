@@ -783,6 +783,50 @@ argument of NumPy routines like
 True
 ```
 
+### Evaluating multiple parameter sets
+
+The `pars` argument can also be sent a 2D array, with one row per
+parameter set (shape `(nset, npars)`). The model is then evaluated for
+each row - i.e. the looping is done in the compiled code - and, for
+the version that creates the output, an array with shape `(nset,
+nbin)` is returned (where `nbin` is the number of energy bins, so the
+`energies` grid still has `nbin + 1` elements):
+
+```
+>>> import numpy as np
+>>> import xspec_models_cxc as x
+>>> egrid = np.arange(0.1, 10, 0.01)
+>>> pars = np.asarray([[0.1], [1.0], [5.0]])   # three nH values for wabs
+>>> y = x.wabs(energies=egrid, pars=pars)
+>>> y.shape
+(3, 989)
+```
+
+which is the equivalent of
+
+```
+>>> y = np.asarray([x.wabs(energies=egrid, pars=p) for p in pars])
+```
+
+The `out` argument of the inplace and convolution routines must be 2D
+in this case, with shape `(nset, nbin)`, and - as before - it is
+changed in place and returned:
+
+```
+>>> out = np.zeros((3, egrid.size - 1), dtype=np.float32)
+>>> yout = x.wabs(energies=egrid, pars=pars, out=out)
+>>> yout is out
+True
+```
+
+The `spectrum` and `initStr` arguments are used for every parameter
+set. Note that the `RealArray` interface (the `<model>_` routines)
+only supports a single parameter set.
+
+This is aimed at samplers that can evaluate a vector of parameters at
+once (it was added in response to
+https://github.com/cxcsds/xspec-models-cxc/issues/36).
+
 ### APEC (additive, C++)
 
 The `model.dat` record for this model is
@@ -1413,6 +1457,17 @@ module does some of the following:
   - Use of the out argument is easy to mess up - see
     https://github.com/cxcsds/xspec-models-cxc/issues/14
 
+- the parameter loop of samplers that support vectorized evaluations
+  can be moved into the compiled code, by passing a 2D array of
+  parameters (one row per parameter set), rather than looping over
+  the parameter sets in Python:
+
+    https://github.com/cxcsds/xspec-models-cxc/issues/36
+
+  The speed-up for a single model call is small - the parameter
+  arrays are still converted to the required numeric type for each
+  row - but it avoids the per-call overhead of going through Python
+  for each parameter set.
 
 - the different XSPEC models have different "preferred" interfaces
   (FORTRAN, C, or C++) and  using the correct one should reduce the

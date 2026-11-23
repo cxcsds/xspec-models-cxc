@@ -12,6 +12,16 @@ compatibility layer in the shipped `xspec_models_cxc.hh` header
 (which also allows user-model builds that used the pybind11-flavoured
 generated code to build unchanged).
 
+Models can now be evaluated for multiple parameter sets at once
+(https://github.com/cxcsds/xspec-models-cxc/issues/36): the `pars`
+argument accepts a 2D array with one row per parameter set (shape
+`(nset, npars)`) for every model - including `tableModel` - and the
+non-inplace routines return an array with shape `(nset, nbin)`. For
+the inplace and convolution routines the `out`/`model` argument must
+be 2D in this case, with shape `(nset, nbin)`. The `RealArray`
+interface (the `<model>_` routines) still only supports a single
+parameter set.
+
 There are two small behavior changes with the move to nanobind:
 
 - the `out`/`model` arguments of the inplace, convolution, and
