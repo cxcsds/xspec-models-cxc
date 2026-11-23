@@ -74,6 +74,15 @@ Highly experimental.
 The XSPEC model library is automatically initialized on the first call
 to one of the functions or models.
 
+Models are normally evaluated for a single set of parameters, by
+sending in pars as a 1D array. To evaluate the model for multiple
+parameter sets at once, send in pars as a 2D array with one row per
+parameter set (shape (nset, npars)): the model is then evaluated for
+each row and, for the non-inplace routines, the return value has shape
+(nset, nbin), where nbin is the number of energy bins (the energies
+grid still has nbin + 1 elements). For the inplace and convolution
+routines the out/model argument must have shape (nset, nbin) in this
+case, and each row is changed in place.
 
 Support routines
 ----------------
@@ -107,7 +116,8 @@ Convolution models
 )doc";
 
     // Access RealArray - the C++-style interface (the <name>_ models)
-    // uses this type.
+    // uses this type. Note that the interface only supports 1D
+    // arrays, so it can not be used with multiple parameter sets.
     //
     nb::class_<RealArray>(m, "RealArray")
 
@@ -415,7 +425,11 @@ Convolution models
 	  "Set the keyword in the database to the given value.",
 	  "keyword"_a, "value"_a);
 
-    // Table-model support.
+    // Table-model support. The pars argument can be 1D (a single
+    // parameter set) or 2D (shape (nset, npars)), in which case the
+    // table is interpolated for each parameter set: the result - or
+    // the model argument, for the inplace version - has shape (nset,
+    // nelem) in this case.
     //
     m.def("tableModel",
 	  [](const std::string filename, const std::string tableType,
@@ -434,14 +448,28 @@ Convolution models
 
 	    xspec_models_cxc::init();
 
-	    // Should we force spectrumNumber >= 1?
-	    auto result = xspec_models_cxc::make_result<float>(nelem);
+	    if (pars.shape.size() == 1) {
+	      // Should we force spectrumNumber >= 1?
+	      auto result = xspec_models_cxc::make_result<float>({ nelem });
+	      auto errors = std::vector<float>(nelem);
+	      tabint(energyArray.data, nelem, pars.data,
+		     static_cast<int>(pars.shape[0]),
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(),
+		     static_cast<float *>(result.data()), errors.data());
+	      return result;
+	    }
+
+	    const int nset = static_cast<int>(pars.shape[0]);
+	    const int npars = static_cast<int>(pars.shape[1]);
+	    auto result = xspec_models_cxc::make_result<float>({ nset, nelem });
 	    auto errors = std::vector<float>(nelem);
-	    tabint(energyArray.data, nelem, pars.data,
-		   static_cast<int>(pars.shape[0]),
-		   filename.c_str(), spectrumNumber,
-		   tableType.c_str(),
-		   static_cast<float *>(result.data()), errors.data());
+	    float *rdata = static_cast<float *>(result.data());
+	    for (int i = 0; i < nset; ++i)
+	      tabint(energyArray.data, nelem, pars.data + i * npars, npars,
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), rdata + i * nelem, errors.data());
+
 	    return result;
 	  },
 	  "XSPEC table model.",
@@ -463,17 +491,39 @@ Convolution models
 
 	    const int nelem = ngrid - 1;
 
-	    xspec_models_cxc::validate_grid_size(ngrid,
-						 static_cast<int>(output.shape[0]));
+	    if (output.shape.size() != pars.shape.size())
+	      throw nb::value_error("model must have the same number of dimensions as pars");
 
 	    xspec_models_cxc::init();
 
-	    // Should we force spectrumNumber >= 1?
+	    if (pars.shape.size() == 1) {
+	      // Should we force spectrumNumber >= 1?
+	      xspec_models_cxc::validate_grid_size(ngrid, static_cast<int>(output.shape[0]));
+	      auto errors = std::vector<float>(nelem);
+	      tabint(energyArray.data, nelem, pars.data,
+		     static_cast<int>(pars.shape[0]),
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), output.data, errors.data());
+	      return output.owner;
+	    }
+
+	    const int nset = static_cast<int>(pars.shape[0]);
+	    const int npars = static_cast<int>(pars.shape[1]);
+	    if (output.shape[0] != nset || output.shape[1] != nelem) {
+	      std::ostringstream emsg;
+	      emsg << "Expected model shape (" << nset << ", " << nelem
+		   << ") but sent (" << output.shape[0] << ", "
+		   << output.shape[1] << ")";
+	      throw nb::value_error(emsg.str().c_str());
+	    }
+
 	    auto errors = std::vector<float>(nelem);
-	    tabint(energyArray.data, nelem, pars.data,
-		   static_cast<int>(pars.shape[0]),
-		   filename.c_str(), spectrumNumber,
-		   tableType.c_str(), output.data, errors.data());
+	    for (int i = 0; i < nset; ++i)
+	      tabint(energyArray.data, nelem, pars.data + i * npars, npars,
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), output.data + i * nelem,
+		     errors.data());
+
 	    return output.owner;
 	  },
 	  "XSPEC table model; inplace.",

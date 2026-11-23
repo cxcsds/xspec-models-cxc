@@ -9,6 +9,7 @@
 
 #include <cstdlib>
 #include <exception>
+#include <initializer_list>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -127,13 +128,18 @@ void init() {
 //
 // The model routines are called with
 //
-//   pars      the parameters (1D, size npars);
+//   pars      the parameters; either 1D (a single parameter set, size
+//             npars) or 2D (shape (nset, npars), in which case the
+//             model is evaluated for each of the nset parameter sets:
+//             the "vectorized" interface);
 //   energies  the energy grid (1D, size ngrid), and
-//   out/model the output (inplace and convolution models only, 1D with
-//             size ngrid - 1).
+//   out/model the output (inplace and convolution models only), which
+//             must match the "shape" of the parameter argument: 1D
+//             with size ngrid - 1 for 1D pars, or 2D with shape (nset,
+//             ngrid - 1) for 2D pars.
 //
-// The result of a non-inplace model call matches the output: 1D with
-// size ngrid - 1.
+// The result of a non-inplace model call matches the output: 1D for
+// 1D pars and 2D with shape (nset, ngrid - 1) for 2D pars.
 //
 // The input arrays (pars and energies) are converted to the required
 // numeric type and memory layout if necessary - so Python lists,
@@ -143,9 +149,10 @@ void init() {
 //
 
 
-// A 1D read-only array, converted to the given type when needed. The
-// owner field keeps the (possibly converted) array alive for the
-// duration of the call.
+// A 1D or 2D read-only array, converted to the given type when
+// needed. The shape field has one element per dimension. The owner
+// field keeps the (possibly converted) array alive for the duration
+// of the call.
 //
 template <typename T>
 struct in_array {
@@ -155,9 +162,9 @@ struct in_array {
 };
 
 
-// A 1D writable array: it must already be a C-contiguous numpy array
-// of the given type, as it is changed in place. The owner field holds
-// the original Python object, so that it can be returned.
+// A 1D or 2D writable array: it must already be a C-contiguous numpy
+// array of the given type, as it is changed in place. The owner field
+// holds the original Python object, so that it can be returned.
 //
 template <typename T>
 struct out_array {
@@ -222,7 +229,7 @@ bool check_in_array(nb::handle src, in_array<T> &out) {
     // this call) has to remain valid for the duration of the call.
     //
     out.owner = nb::borrow(arr);
-    return out.shape.size() == 1;
+    return out.shape.size() == 1 || out.shape.size() == 2;
 
   } catch (const nb::python_error&) {
     return false;
@@ -246,7 +253,7 @@ bool check_out_array(nb::handle src, out_array<T> &out) {
 
   out.data = const_cast<T *>(cdata);
   out.owner = nb::borrow(src);
-  return out.shape.size() == 1;
+  return out.shape.size() == 1 || out.shape.size() == 2;
 }
 
 } // namespace detail
@@ -327,15 +334,13 @@ void validate_grid_size(const int energySize, const int modelSize) {
 }
 
 
-// Check the input arrays are usable and return the number of energy
+// Check the input arrays are usable and return the number of
+// parameter sets to evaluate (1 for 1D pars) and the number of energy
 // bins.
 //
 template <typename T>
 void validate_shapes(const in_array<T> &pars, const in_array<T> &energies,
-                     const int NumPars, int &ngrid) {
-
-  if (pars.shape.size() != 1)
-    throw nb::value_error("pars must be 1D");
+                     const int NumPars, int &nset, int &ngrid) {
 
   if (energies.shape.size() != 1)
     throw nb::value_error("energies must be 1D");
@@ -344,38 +349,69 @@ void validate_shapes(const in_array<T> &pars, const in_array<T> &energies,
   if (ngrid < 3)
     throw nb::value_error("Expected at least 3 bin edges");
 
-  validate_par_size(NumPars, static_cast<int>(pars.shape[0]));
+  if (pars.shape.size() == 1) {
+    nset = 1;
+    validate_par_size(NumPars, static_cast<int>(pars.shape[0]));
+    return;
+  }
+
+  nset = static_cast<int>(pars.shape[0]);
+  validate_par_size(NumPars, static_cast<int>(pars.shape[1]));
 }
 
 
 // As validate_shapes but also check the output array matches the
-// parameters.
+// "shape" of the parameters.
 //
 template <typename T>
 void validate_shapes(const in_array<T> &pars, const in_array<T> &energies,
                      const out_array<T> &out, const int NumPars,
-                     int &ngrid) {
+                     int &nset, int &ngrid) {
 
-  validate_shapes(pars, energies, NumPars, ngrid);
+  validate_shapes(pars, energies, NumPars, nset, ngrid);
 
-  if (out.shape.size() != 1)
-    throw nb::value_error("model/out must be 1D");
+  if (out.shape.size() != pars.shape.size())
+    throw nb::value_error("model/out must have the same number of dimensions as pars");
 
-  validate_grid_size(ngrid, static_cast<int>(out.shape[0]));
+  const int64_t nelem = ngrid - 1;
+  if (nset == 1) {
+    validate_grid_size(ngrid, static_cast<int>(out.shape[0]));
+    return;
+  }
+
+  if (out.shape[0] != pars.shape[0] || out.shape[1] != nelem) {
+    std::ostringstream err;
+    err << "Expected model/out shape (" << pars.shape[0] << ", " << nelem
+        << ") but sent (" << out.shape[0] << ", " << out.shape[1] << ")";
+    throw nb::value_error(err.str().c_str());
+  }
 }
 
 
-// Create a new 1D array of the given size, zero filled.
+// Create a new array of the given shape (1D or 2D only), zero filled.
 //
 template <typename T>
-nb::ndarray<nb::numpy, T> make_result(int64_t nelem) {
+nb::ndarray<nb::numpy, T> make_result(std::initializer_list<int64_t> shape) {
+  int64_t nelem = 1;
+  for (auto n : shape)
+    nelem *= n;
+
   T *data = new T[nelem]();
   nb::capsule owner(data, [](void *p) noexcept { delete[] static_cast<T *>(p); });
-  return nb::ndarray<nb::numpy, T>(data, { (size_t) nelem }, owner);
+
+  if (shape.size() == 1)
+    return nb::ndarray<nb::numpy, T>(data, { (size_t) *shape.begin() },
+                                     owner);
+
+  return nb::ndarray<nb::numpy, T>(data,
+                                   { (size_t) *shape.begin(),
+                                     (size_t) *(shape.begin() + 1) },
+                                   owner);
 }
 
 
-// The C++-style interface (which uses the RealArray type).
+// The C++-style interface (which uses the RealArray type) is only
+// supported for a single parameter set.
 //
 template <XSCCall model, int NumPars>
 RealArray& wrapper_inplace_CXX(const RealArray pars,
@@ -412,19 +448,28 @@ nb::ndarray<nb::numpy, Real> wrapper_C(const in_array<Real> pars,
 				       const int spectrumNumber,
 				       const std::string initStr) {
 
-  int ngrid;
-  validate_shapes(pars, energies, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<Real>(nelem);
 
   xspec_models_cxc::init();
 
-  auto result = make_result<Real>(nelem);
-  model(energies.data, nelem, pars.data, spectrumNumber,
- static_cast<Real *>(result.data()), errors.data(),
- initStr.c_str());
-  return result;
+  if (pars.shape.size() == 1) {
+    auto result = make_result<Real>({ nelem });
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  static_cast<Real *>(result.data()), errors.data(),
+	  initStr.c_str());
+    return result;
+  }
+
+  auto result = make_result<Real>({ pars.shape[0], nelem });
+  Real *rdata = static_cast<Real *>(result.data());
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  rdata + i * nelem, errors.data(), initStr.c_str());
+
   return result;
 }
 
@@ -436,17 +481,24 @@ nb::object wrapper_inplace_C(const in_array<Real> pars,
 			     const int spectrumNumber,
 			     const std::string initStr) {
 
-  int ngrid;
-  validate_shapes(pars, energies, output, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, output, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<Real>(nelem);
 
   xspec_models_cxc::init();
 
-  model(energies.data, nelem, pars.data, spectrumNumber,
- output.data, errors.data(), initStr.c_str());
-  return output.owner;
+  if (pars.shape.size() == 1) {
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  output.data, errors.data(), initStr.c_str());
+    return output.owner;
+  }
+
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  output.data + i * nelem, errors.data(), initStr.c_str());
+
   return output.owner;
 }
 
@@ -458,18 +510,27 @@ nb::ndarray<nb::numpy, float> wrapper_f(const in_array<float> pars,
 					const in_array<float> energies,
 					const int spectrumNumber) {
 
-  int ngrid;
-  validate_shapes(pars, energies, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<float>(nelem);
 
   xspec_models_cxc::init();
 
-  auto result = make_result<float>(nelem);
-  model(energies.data, nelem, pars.data, spectrumNumber,
- static_cast<float *>(result.data()), errors.data());
-  return result;
+  if (pars.shape.size() == 1) {
+    auto result = make_result<float>({ nelem });
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  static_cast<float *>(result.data()), errors.data());
+    return result;
+  }
+
+  auto result = make_result<float>({ pars.shape[0], nelem });
+  float *rdata = static_cast<float *>(result.data());
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  rdata + i * nelem, errors.data());
+
   return result;
 }
 
@@ -480,17 +541,24 @@ nb::object wrapper_inplace_f(const in_array<float> pars,
 			     out_array<float> output,
 			     const int spectrumNumber) {
 
-  int ngrid;
-  validate_shapes(pars, energies, output, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, output, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<float>(nelem);
 
   xspec_models_cxc::init();
 
-  model(energies.data, nelem, pars.data, spectrumNumber,
- output.data, errors.data());
-  return output.owner;
+  if (pars.shape.size() == 1) {
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  output.data, errors.data());
+    return output.owner;
+  }
+
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  output.data + i * nelem, errors.data());
+
   return output.owner;
 }
 
@@ -500,18 +568,27 @@ nb::ndarray<nb::numpy, double> wrapper_F(const in_array<double> pars,
 					 const in_array<double> energies,
 					 const int spectrumNumber) {
 
-  int ngrid;
-  validate_shapes(pars, energies, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<double>(nelem);
 
   xspec_models_cxc::init();
 
-  auto result = make_result<double>(nelem);
-  model(energies.data, nelem, pars.data, spectrumNumber,
- static_cast<double *>(result.data()), errors.data());
-  return result;
+  if (pars.shape.size() == 1) {
+    auto result = make_result<double>({ nelem });
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  static_cast<double *>(result.data()), errors.data());
+    return result;
+  }
+
+  auto result = make_result<double>({ pars.shape[0], nelem });
+  double *rdata = static_cast<double *>(result.data());
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  rdata + i * nelem, errors.data());
+
   return result;
 }
 
@@ -522,17 +599,24 @@ nb::object wrapper_inplace_F(const in_array<double> pars,
 			     out_array<double> output,
 			     const int spectrumNumber) {
 
-  int ngrid;
-  validate_shapes(pars, energies, output, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, output, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<double>(nelem);
 
   xspec_models_cxc::init();
 
-  model(energies.data, nelem, pars.data, spectrumNumber,
- output.data, errors.data());
-  return output.owner;
+  if (pars.shape.size() == 1) {
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  output.data, errors.data());
+    return output.owner;
+  }
+
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  output.data + i * nelem, errors.data());
+
   return output.owner;
 }
 
@@ -548,17 +632,24 @@ nb::object wrapper_con_C(const in_array<Real> pars,
 			 const int spectrumNumber,
 			 const std::string initStr) {
 
-  int ngrid;
-  validate_shapes(pars, energies, inModel, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, inModel, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<Real>(nelem);
 
   xspec_models_cxc::init();
 
-  model(energies.data, nelem, pars.data, spectrumNumber,
- inModel.data, errors.data(), initStr.c_str());
-  return inModel.owner;
+  if (pars.shape.size() == 1) {
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  inModel.data, errors.data(), initStr.c_str());
+    return inModel.owner;
+  }
+
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  inModel.data + i * nelem, errors.data(), initStr.c_str());
+
   return inModel.owner;
 }
 
@@ -569,17 +660,24 @@ nb::object wrapper_con_f(const in_array<float> pars,
 			 out_array<float> inModel,
 			 const int spectrumNumber) {
 
-  int ngrid;
-  validate_shapes(pars, energies, inModel, NumPars, ngrid);
+  int nset, ngrid;
+  validate_shapes(pars, energies, inModel, NumPars, nset, ngrid);
 
   const int nelem = ngrid - 1;
   auto errors = std::vector<float>(nelem);
 
   xspec_models_cxc::init();
 
-  model(energies.data, nelem, pars.data, spectrumNumber,
- inModel.data, errors.data());
-  return inModel.owner;
+  if (pars.shape.size() == 1) {
+    model(energies.data, nelem, pars.data, spectrumNumber,
+	  inModel.data, errors.data());
+    return inModel.owner;
+  }
+
+  for (int i = 0; i < nset; ++i)
+    model(energies.data, nelem, pars.data + i * NumPars, spectrumNumber,
+	  inModel.data + i * nelem, errors.data());
+
   return inModel.owner;
 }
 
