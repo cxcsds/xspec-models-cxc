@@ -5,6 +5,7 @@ __pycache__
 
 src/xspec_models_cxc/_compiled.*.so
 src/xspec_models_cxc/xspec.cxx
+nb_runtime_build/
 src/xspec_models_cxc/__init__.py
 src/xspec_models_cxc/utils.py
 
