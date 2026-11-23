@@ -1,4 +1,4 @@
-//  Copyright (C) 2007, 2015-2018, 2019, 2020, 2021, 2022, 2023
+//  Copyright (C) 2007, 2015-2018, 2019, 2020, 2021, 2022, 2023, 2026
 //  Smithsonian Astrophysical Observatory
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -6,10 +6,14 @@
 
 #include <iostream>
 #include <fstream>
+#include <map>
+#include <vector>
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -51,15 +55,10 @@
 //
 #include "xspec_models_cxc.hh"
 
+namespace nb = nanobind;
+using namespace nb::literals;
 
-// Allow access to the RealArray typedef.
-//
-PYBIND11_MAKE_OPAQUE(RealArray);
-
-namespace py = pybind11;
-using namespace pybind11::literals;
-
-PYBIND11_MODULE(_compiled, m) {
+NB_MODULE(_compiled, m) {
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
@@ -74,6 +73,16 @@ Highly experimental.
 
 The XSPEC model library is automatically initialized on the first call
 to one of the functions or models.
+
+Models are normally evaluated for a single set of parameters, by
+sending in pars as a 1D array. To evaluate the model for multiple
+parameter sets at once, send in pars as a 2D array with one row per
+parameter set (shape (nset, npars)): the model is then evaluated for
+each row and, for the non-inplace routines, the return value has shape
+(nset, nbin), where nbin is the number of energy bins (the energies
+grid still has nbin + 1 elements). For the inplace and convolution
+routines the out/model argument must have shape (nset, nbin) in this
+case, and each row is changed in place.
 
 Support routines
 ----------------
@@ -106,29 +115,48 @@ Convolution models
 
 )doc";
 
-    // Access RealArray - unfortunately there's no
-    // py::bind_valarray template in pybind/stl_bind.c
+    // Access RealArray - the C++-style interface (the <name>_ models)
+    // uses this type. Note that the interface only supports 1D
+    // arrays, so it can not be used with multiple parameter sets.
     //
-    py::class_<RealArray>(m, "RealArray")
+    nb::class_<RealArray>(m, "RealArray")
 
-      .def(py::init([](const std::size_t n) {
-	return RealArray(n);
-      }), "Create an array of n zeros.")
+      .def(nb::init<size_t>(),
+	   "Create an array of n zeros.")
 
-      .def(py::init([](py::array_t<Real, py::array::c_style | py::array::forcecast> &values) {
+      .def(nb::init<const RealArray &>(),
+	   "Create a copy of an existing array.")
 
-	py::buffer_info buf = values.request();
-	if (buf.ndim != 1)
-	  throw pybind11::value_error("values must be 1D");
+      .def("__init__",
+	   [](RealArray *v, nb::sequence values) {
 
-	double *ptr = static_cast<Real *>(buf.ptr);
-	return RealArray(ptr, buf.size);
-      }), "Copy the data into an array.")
+	     // Convert the sequence - a list, tuple, or numpy array -
+	     // to an array of Real values. A numpy array could be
+	     // copied directly but this also supports mixed inputs.
+	     //
+	     Py_ssize_t n = PySequence_Size(values.ptr());
+	     if (n < 0)
+	       throw nb::type_error("values must be a sequence");
+
+	     std::vector<Real> vals;
+	     vals.reserve(n);
+	     for (Py_ssize_t i = 0; i < n; ++i) {
+	       nb::object item = nb::steal(PySequence_GetItem(values.ptr(), i));
+	       double value = PyFloat_AsDouble(item.ptr());
+	       if (value == -1.0 && PyErr_Occurred())
+		 throw nb::type_error("values must be numeric");
+
+	       vals.push_back(static_cast<Real>(value));
+	     }
+
+	     new (v) RealArray(vals.data(), vals.size());
+	   },
+	   "Copy the data into an array.")
 
       .def("__len__", &RealArray::size)
-      .def("__iter__", [](RealArray &v) {
-	return py::make_iterator(std::begin(v), std::end(v));
-      }, py::keep_alive<0, 1>()) // Keep vector alive while iterator is used
+      // Iteration is supported via __getitem__ (the Python sequence
+      // protocol), which also keeps a reference to the array while it
+      // is being iterated over.
 
       .def("__repr__", [](const RealArray &v) {
 	std::ostringstream s;
@@ -146,21 +174,21 @@ Convolution models
       // lead to boomtown (segfault-a-plenty) so, as it's not really
       // needed. I didn't explore any further.
       //
-      .def("__getitem__", [](const RealArray &v, int i) {
-	const int s = static_cast<int>(v.size());
+      .def("__getitem__", [](const RealArray &v, Py_ssize_t i) {
+	const Py_ssize_t s = static_cast<Py_ssize_t>(v.size());
 	if (i < 0)
 	  i += s;
 	if (i < 0 || i >= s)
-	  throw py::index_error();
+	  throw nb::index_error();
 	return v[i];
       })
 
-      .def("__setitem__", [](RealArray &v, int i, const Real &value) {
-	const int s = static_cast<int>(v.size());
+      .def("__setitem__", [](RealArray &v, Py_ssize_t i, const Real &value) {
+	const Py_ssize_t s = static_cast<Py_ssize_t>(v.size());
 	if (i < 0)
 	  i += s;
 	if (i < 0 || i >= s)
-	  throw py::index_error();
+	  throw nb::index_error();
 	v[i] = value;
       })
 
@@ -168,7 +196,7 @@ Convolution models
 
     // Access to the library functionality. The string returned
     // by this routine is created on-the-fly and so I think it's
-    // okay for pybind11 to take ownership if it.
+    // okay for nanobind to take ownership if it.
     //
     //
     m.def("get_version",
@@ -178,7 +206,7 @@ Convolution models
     // You could be fancy and have an XSPEC object where these
     // are get/set attributes, but leave that to a separate
     // module (or a later attempt) since we could encode such
-    // an object with pybind11.
+    // an object with nanobind.
     //
     // It is also not clear whether we need to manually create
     // these lambdas, but I was seeing issues when I just wanted
@@ -199,11 +227,10 @@ Convolution models
     //
     m.def("abundance",
 	  []() { xspec_models_cxc::init(); return FunctionUtility::ABUND(); },
-	  "Get the abundance-table setting.",
-	  py::return_value_policy::reference);
+	  "Get the abundance-table setting.");
 
     m.def("abundance",
-	  [](const string& value) { xspec_models_cxc::init(); return FunctionUtility::ABUND(value); },
+	  [](const std::string& value) { xspec_models_cxc::init(); return FunctionUtility::ABUND(value); },
 	  "Set the abundance-table setting.",
 	  "table"_a);
 
@@ -211,7 +238,7 @@ Convolution models
     // input was invalid. This is not great!
     //
     m.def("elementAbundance",
-	  [](const string& value) {
+	  [](const std::string& value) {
 	    xspec_models_cxc::init();
 
 	    std::ostringstream local;
@@ -223,7 +250,7 @@ Convolution models
 
 	    std::cerr.rdbuf(cerr_buff);
 	    if (local.str() != "")
-	      throw pybind11::key_error(value);
+	      throw nb::key_error(value.c_str());
 
 	    return answer;
 	  },
@@ -236,7 +263,7 @@ Convolution models
 	    if (Z < 1 || Z > FunctionUtility::NELEMS()) {
 	      std::ostringstream emsg;
 	      emsg << Z;
-	      throw pybind11::index_error(emsg.str());
+	      throw nb::index_error(emsg.str().c_str());
 	    }
 
 	    return FunctionUtility::getAbundance(Z);
@@ -247,8 +274,7 @@ Convolution models
     m.def("elementName",
 	  [](const size_t Z) { xspec_models_cxc::init(); return FunctionUtility::elements(Z - 1); },
 	  "Return the name of an element given the atomic number.",
-	  "z"_a,
-	  py::return_value_policy::reference);
+	  "z"_a);
 
     // Assume this is not going to change within a session!
     // Also we assume that this can be called without calling FNINIT.
@@ -259,11 +285,10 @@ Convolution models
     //
     m.def("cross_section",
 	  []() { xspec_models_cxc::init(); return FunctionUtility::XSECT(); },
-	  "Get the cross-section-table setting.",
-	  py::return_value_policy::reference);
+	  "Get the cross-section-table setting.");
 
     m.def("cross_section",
-	  [](const string& value) { xspec_models_cxc::init(); return FunctionUtility::XSECT(value); },
+	  [](const std::string& value) { xspec_models_cxc::init(); return FunctionUtility::XSECT(value); },
 	  "Set the cross-section-table setting.",
 	  "table"_a);
 
@@ -306,8 +331,7 @@ Convolution models
     m.def("getXFLT",
 	  [](int ifl) { xspec_models_cxc::init(); return FunctionUtility::getAllXFLT(ifl); },
 	  "What are all the XFLT keywords for the spectrum?",
-	  "spectrum"_a=1,
-	  py::return_value_policy::reference);
+	  "spectrum"_a=1);
 
     m.def("getXFLT",
 	  [](int ifl, int i) { xspec_models_cxc::init(); return FunctionUtility::getXFLT(ifl, i); },
@@ -315,7 +339,7 @@ Convolution models
 	  "spectrum"_a, "key"_a);
 
     m.def("getXFLT",
-	  [](int ifl, string skey) { xspec_models_cxc::init(); return FunctionUtility::getXFLT(ifl, skey); },
+	  [](int ifl, std::string skey) { xspec_models_cxc::init(); return FunctionUtility::getXFLT(ifl, skey); },
 	  "Return the given XFLT name.",
 	  "spectrum"_a, "name"_a);
 
@@ -325,12 +349,12 @@ Convolution models
 	  "spectrum"_a, "key"_a);
 
     m.def("inXFLT",
-	  [](int ifl, string skey) { xspec_models_cxc::init(); return FunctionUtility::inXFLT(ifl, skey); },
+	  [](int ifl, std::string skey) { xspec_models_cxc::init(); return FunctionUtility::inXFLT(ifl, skey); },
 	  "Is the given XFLT name set?.",
 	  "spectrum"_a, "name"_a);
 
     m.def("setXFLT",
-	  [](int ifl, const std::map<string, Real>& values) { xspec_models_cxc::init(); FunctionUtility::loadXFLT(ifl, values); },
+	  [](int ifl, const std::map<std::string, Real>& values) { xspec_models_cxc::init(); FunctionUtility::loadXFLT(ifl, values); },
 	  "Set the XFLT keywords for a spectrum",
 	  "spectrum"_a, "values"_a);
 
@@ -344,22 +368,21 @@ Convolution models
 
     m.def("getModelString",
 	  []() { xspec_models_cxc::init(); return FunctionUtility::modelStringDataBase(); },
-	  "Get the model string database.",
-	  py::return_value_policy::reference);
+	  "Get the model string database.");
 
     m.def("getModelString",
-	  [](const string& key) {
+	  [](const std::string& key) {
 	    xspec_models_cxc::init();
 	    auto answer = FunctionUtility::getModelString(key);
 	    if (answer == FunctionUtility::NOT_A_KEY())
-	      throw pybind11::key_error(key);
+	      throw nb::key_error(key.c_str());
 	    return answer;
 	  },
 	  "Get the key from the model string database.",
 	  "key"_a);
 
     m.def("setModelString",
-	  [](const string& key, const string& value) { xspec_models_cxc::init(); FunctionUtility::setModelString(key, value); },
+	  [](const std::string& key, const std::string& value) { xspec_models_cxc::init(); FunctionUtility::setModelString(key, value); },
 	  "Get the key from the model string database.",
 	  "key"_a, "value"_a);
 
@@ -372,14 +395,13 @@ Convolution models
 
     m.def("getDb",
 	  []() { xspec_models_cxc::init(); return FunctionUtility::getAllDbValues(); },
-	  "Get the keyword database.",
-	  py::return_value_policy::reference);
+	  "Get the keyword database.");
 
     // If the keyword is not an element then we get a string message and a set
     // return value. Catching this is annoying.
     //
     m.def("getDb",
-	  [](const string keyword) {
+	  [](const std::string keyword) {
 	    xspec_models_cxc::init();
 
 	    std::ostringstream local;
@@ -391,7 +413,7 @@ Convolution models
 
 	    std::cerr.rdbuf(cerr_buff);
 	    if (answer == BADVAL)
-	      throw pybind11::key_error(keyword);
+	      throw nb::key_error(keyword.c_str());
 
 	    return answer;
 	  },
@@ -399,82 +421,110 @@ Convolution models
 	  "keyword"_a);
 
     m.def("setDb",
-	  [](const string keyword, const double value) { xspec_models_cxc::init(); FunctionUtility::loadDbValue(keyword, value); },
+	  [](const std::string keyword, const double value) { xspec_models_cxc::init(); FunctionUtility::loadDbValue(keyword, value); },
 	  "Set the keyword in the database to the given value.",
 	  "keyword"_a, "value"_a);
 
-    // Table-model support
+    // Table-model support. The pars argument can be 1D (a single
+    // parameter set) or 2D (shape (nset, npars)), in which case the
+    // table is interpolated for each parameter set: the result - or
+    // the model argument, for the inplace version - has shape (nset,
+    // nelem) in this case.
     //
     m.def("tableModel",
-	  [](const string filename, const string tableType,
-	     py::array_t<float, py::array::c_style | py::array::forcecast> pars,
-	     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
+	  [](const std::string filename, const std::string tableType,
+	     const xspec_models_cxc::in_array<float> pars,
+	     const xspec_models_cxc::in_array<float> energyArray,
 	     const int spectrumNumber) {
 
-	    py::buffer_info pbuf = pars.request(), ebuf = energyArray.request();
-	    if (pbuf.ndim != 1 || ebuf.ndim != 1)
-	      throw pybind11::value_error("pars and energyArray must be 1D");
+	    if (energyArray.shape.size() != 1)
+	      throw nb::value_error("energies must be 1D");
 
-	    if (ebuf.size < 3)
-	      throw pybind11::value_error("Expected at least 3 bin edges");
+	    const int ngrid = static_cast<int>(energyArray.shape[0]);
+	    if (ngrid < 3)
+	      throw nb::value_error("Expected at least 3 bin edges");
 
-	    // Should we force spectrumNumber >= 1?
-
-	    const int nelem = ebuf.size - 1;
-
-	    // Can we easily zero out the arrays?
-	    auto result = py::array_t<float>(nelem);
-	    auto errors = std::vector<float>(nelem);
-
-	    py::buffer_info obuf = result.request();
-
-	    float *pptr = static_cast<float *>(pbuf.ptr);
-	    float *eptr = static_cast<float *>(ebuf.ptr);
-	    float *optr = static_cast<float *>(obuf.ptr);
+	    const int nelem = ngrid - 1;
 
 	    xspec_models_cxc::init();
-	    tabint(eptr, nelem, pptr, pbuf.size,
-		   filename.c_str(), spectrumNumber,
-		   tableType.c_str(), optr, errors.data());
+
+	    if (pars.shape.size() == 1) {
+	      // Should we force spectrumNumber >= 1?
+	      auto result = xspec_models_cxc::make_result<float>({ nelem });
+	      auto errors = std::vector<float>(nelem);
+	      tabint(energyArray.data, nelem, pars.data,
+		     static_cast<int>(pars.shape[0]),
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(),
+		     static_cast<float *>(result.data()), errors.data());
+	      return result;
+	    }
+
+	    const int nset = static_cast<int>(pars.shape[0]);
+	    const int npars = static_cast<int>(pars.shape[1]);
+	    auto result = xspec_models_cxc::make_result<float>({ nset, nelem });
+	    auto errors = std::vector<float>(nelem);
+	    float *rdata = static_cast<float *>(result.data());
+	    for (int i = 0; i < nset; ++i)
+	      tabint(energyArray.data, nelem, pars.data + i * npars, npars,
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), rdata + i * nelem, errors.data());
+
 	    return result;
 	  },
 	  "XSPEC table model.",
 	  "table"_a, "table_type"_a, "pars"_a, "energies"_a, "spectrum"_a=1);
 
     m.def("tableModel",
-	  [](const string filename, const string tableType,
-	     py::array_t<float, py::array::c_style | py::array::forcecast> pars,
-	     py::array_t<float, py::array::c_style | py::array::forcecast> energyArray,
-	     py::array_t<float, py::array::c_style | py::array::forcecast> output,
+	  [](const std::string filename, const std::string tableType,
+	     const xspec_models_cxc::in_array<float> pars,
+	     const xspec_models_cxc::in_array<float> energyArray,
+	     xspec_models_cxc::out_array<float> output,
 	     const int spectrumNumber) {
 
-	    py::buffer_info pbuf = pars.request(),
-	      ebuf = energyArray.request(),
-	      obuf = output.request();
-	    if (pbuf.ndim != 1 || ebuf.ndim != 1 || obuf.ndim != 1)
-	      throw pybind11::value_error("pars, energyArray, and model must be 1D");
+	    if (energyArray.shape.size() != 1)
+	      throw nb::value_error("energies must be 1D");
 
-	    if (ebuf.size < 3)
-	      throw pybind11::value_error("Expected at least 3 bin edges");
+	    const int ngrid = static_cast<int>(energyArray.shape[0]);
+	    if (ngrid < 3)
+	      throw nb::value_error("Expected at least 3 bin edges");
 
-	    xspec_models_cxc::validate_grid_size(ebuf.size, obuf.size);
+	    const int nelem = ngrid - 1;
 
-	    // Should we force spectrumNumber >= 1?
-
-	    const int nelem = ebuf.size - 1;
-
-	    // Can we easily zero out the arrays?
-	    auto errors = std::vector<float>(nelem);
-
-	    float *pptr = static_cast<float *>(pbuf.ptr);
-	    float *eptr = static_cast<float *>(ebuf.ptr);
-	    float *optr = static_cast<float *>(obuf.ptr);
+	    if (output.shape.size() != pars.shape.size())
+	      throw nb::value_error("model must have the same number of dimensions as pars");
 
 	    xspec_models_cxc::init();
-	    tabint(eptr, nelem, pptr, pbuf.size,
-		   filename.c_str(), spectrumNumber,
-		   tableType.c_str(), optr, errors.data());
-	    return output;
+
+	    if (pars.shape.size() == 1) {
+	      // Should we force spectrumNumber >= 1?
+	      xspec_models_cxc::validate_grid_size(ngrid, static_cast<int>(output.shape[0]));
+	      auto errors = std::vector<float>(nelem);
+	      tabint(energyArray.data, nelem, pars.data,
+		     static_cast<int>(pars.shape[0]),
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), output.data, errors.data());
+	      return output.owner;
+	    }
+
+	    const int nset = static_cast<int>(pars.shape[0]);
+	    const int npars = static_cast<int>(pars.shape[1]);
+	    if (output.shape[0] != nset || output.shape[1] != nelem) {
+	      std::ostringstream emsg;
+	      emsg << "Expected model shape (" << nset << ", " << nelem
+		   << ") but sent (" << output.shape[0] << ", "
+		   << output.shape[1] << ")";
+	      throw nb::value_error(emsg.str().c_str());
+	    }
+
+	    auto errors = std::vector<float>(nelem);
+	    for (int i = 0; i < nset; ++i)
+	      tabint(energyArray.data, nelem, pars.data + i * npars, npars,
+		     filename.c_str(), spectrumNumber,
+		     tableType.c_str(), output.data + i * nelem,
+		     errors.data());
+
+	    return output.owner;
 	  },
 	  "XSPEC table model; inplace.",
 	  "table"_a, "table_type"_a, "pars"_a, "energies"_a, "model"_a, "spectrum"_a=1,

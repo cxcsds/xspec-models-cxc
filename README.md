@@ -61,10 +61,11 @@ can try
 ```
 
 The build requires both
-[pybind11](https://pybind11.readthedocs.io/en/stable/index.html) and
+[nanobind](https://nanobind.readthedocs.io/en/latest/index.html) and
 [parse-xspec](https://github.com/cxcsds/parse_xspec) but they will be
 installed automatically if needed. Neither is required to use the
-compiled module.
+compiled module (nanobind requires C++17, whereas the pybind11 version
+this module previously used could build with C++11).
 
 ### How to test
 
@@ -782,6 +783,50 @@ argument of NumPy routines like
 True
 ```
 
+### Evaluating multiple parameter sets
+
+The `pars` argument can also be sent a 2D array, with one row per
+parameter set (shape `(nset, npars)`). The model is then evaluated for
+each row - i.e. the looping is done in the compiled code - and, for
+the version that creates the output, an array with shape `(nset,
+nbin)` is returned (where `nbin` is the number of energy bins, so the
+`energies` grid still has `nbin + 1` elements):
+
+```
+>>> import numpy as np
+>>> import xspec_models_cxc as x
+>>> egrid = np.arange(0.1, 10, 0.01)
+>>> pars = np.asarray([[0.1], [1.0], [5.0]])   # three nH values for wabs
+>>> y = x.wabs(energies=egrid, pars=pars)
+>>> y.shape
+(3, 989)
+```
+
+which is the equivalent of
+
+```
+>>> y = np.asarray([x.wabs(energies=egrid, pars=p) for p in pars])
+```
+
+The `out` argument of the inplace and convolution routines must be 2D
+in this case, with shape `(nset, nbin)`, and - as before - it is
+changed in place and returned:
+
+```
+>>> out = np.zeros((3, egrid.size - 1), dtype=np.float32)
+>>> yout = x.wabs(energies=egrid, pars=pars, out=out)
+>>> yout is out
+True
+```
+
+The `spectrum` and `initStr` arguments are used for every parameter
+set. Note that the `RealArray` interface (the `<model>_` routines)
+only supports a single parameter set.
+
+This is aimed at samplers that can evaluate a vector of parameters at
+once (it was added in response to
+https://github.com/cxcsds/xspec-models-cxc/issues/36).
+
 ### APEC (additive, C++)
 
 The `model.dat` record for this model is
@@ -802,16 +847,17 @@ Abundance=1, Redshift=0 - for the energy grid 0.1-0.2, 0.2-0.3,
 >>> help(x.apec)
 Help on built-in function apec in module xspec_models_cxc:
 
-apec(...) method of builtins.PyCapsule instance
-    apec(*args, **kwargs)
+apec = <nanobind.nb_func object>
+    apec(pars: numpy.ndarray, energies: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> numpy.ndarray[dtype=float64]
+    apec(pars: numpy.ndarray, energies: numpy.ndarray, out: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> object
+
     Overloaded function.
 
-    1. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '')
--> numpy.ndarray[numpy.float64]
+    1. ``apec(pars: numpy.ndarray, energies: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> numpy.ndarray[dtype=float64]``
 
     The XSPEC additive apec model (3 parameters).
 
-    2. apec(pars: numpy.ndarray[numpy.float64], energies: numpy.ndarray[numpy.float64], out: numpy.ndarray[numpy.float64], spectrum: int = 1, initStr: str = '') -> numpy.ndarray[numpy.float64]
+    2. ``apec(pars: numpy.ndarray, energies: numpy.ndarray, out: numpy.ndarray, spectrum: int = 1, initStr: str = '') -> object``
 
     The XSPEC additive apec model (3 parameters); inplace.
 
@@ -1264,7 +1310,7 @@ all have a "_" variant such as
 >>> help(x.TBabs_)
 Help on built-in function TBabs_ in module xspec_models_cxc._compiled:
 
-TBabs_(...) method of builtins.PyCapsule instance
+TBabs_ = <nanobind.nb_func object>
     TBabs_(pars: xspec_models_cxc._compiled.RealArray, energies: xspec_models_cxc._compiled.RealArray, out: xspec_models_cxc._compiled.RealArray, spectrum: int = 1, initStr: str = '') -> xspec_models_cxc._compiled.RealArray
 
     The XSPEC multiplicative TBabs model (1 parameter); RealArray, inplace.
@@ -1276,29 +1322,28 @@ which use this interface. The `x.RealArray` type
 >>> help(x.RealArray)
 Help on class RealArray in module xspec_models_cxc._compiled:
 
-class RealArray(pybind11_builtins.pybind11_object)
- |  Method resolution order:
- |      RealArray
- |      pybind11_builtins.pybind11_object
- |      builtins.object
+class RealArray(builtins.object)
+ |  RealArray(*args, **kwargs)
  |
  |  Methods defined here:
  |
  |  __getitem__(...)
- |      __getitem__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> float
+ |      __getitem__(self, arg: int, /) -> float
  |
  |  __init__(...)
- |      __init__(*args, **kwargs)
+ |      __init__(self, arg: int, /) -> None
+ |      __init__(self, arg: xspec_models_cxc._compiled.RealArray, /) -> None
+ |      __init__(self, arg: collections.abc.Sequence, /) -> None
+ |
  |      Overloaded function.
  |
- |      1. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: int) -> None
+ |      1. ``__init__(self, arg: int, /) -> None``
  |
  |      Create an array of n zeros.
  |
- |      2. __init__(self: xspec_models_cxc._compiled.RealArray, arg0: numpy.ndarray[numpy.float64]) -> None
+ |      2. ``__init__(self, arg: xspec_models_cxc._compiled.RealArray, /) -> None``
  |
- |      Copy the data into an array.
- |
+ |      Create a copy of an existing array.
 ...
 ```
 
@@ -1411,6 +1456,18 @@ module does some of the following:
   - The convolution models only support the inplace varsion.
   - Use of the out argument is easy to mess up - see
     https://github.com/cxcsds/xspec-models-cxc/issues/14
+
+- the parameter loop of samplers that support vectorized evaluations
+  can be moved into the compiled code, by passing a 2D array of
+  parameters (one row per parameter set), rather than looping over
+  the parameter sets in Python:
+
+    https://github.com/cxcsds/xspec-models-cxc/issues/36
+
+  The speed-up for a single model call is small - the parameter
+  arrays are still converted to the required numeric type for each
+  row - but it avoids the per-call overhead of going through Python
+  for each parameter set.
 
 - the different XSPEC models have different "preferred" interfaces
   (FORTRAN, C, or C++) and  using the correct one should reduce the
