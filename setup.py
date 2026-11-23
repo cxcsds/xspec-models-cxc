@@ -14,6 +14,11 @@ There is also support for the CXC xspec-modelsonly conda installation
 of XSPEC, which does some "interesting" things to accomodate the
 HEASARC/XSPEC installation within a conda-like environment.
 
+The bindings are created with nanobind: as this is not fully
+header-only, the nb_combined.cpp source from the nanobind package is
+compiled as part of the module (the approach nanobind documents for
+build systems without CMake support). This requires C++17.
+
 """
 
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -25,9 +30,9 @@ import subprocess
 import sys
 import sysconfig
 
-from setuptools import setup
+from setuptools import Extension, setup
 
-from pybind11.setup_helpers import Pybind11Extension, build_ext
+import nanobind
 
 # How do we use local modules like helpers? This is a hack based on
 # discussions around
@@ -125,8 +130,6 @@ proc = subprocess.run([str(compiled)], check=True,
 xspec_version = proc.stdout.strip()
 print(f"Building against XSPEC: '{xspec_version}'")
 
-macros = [('VERSION_INFO', __version__)]
-
 out_dir = Path('src/xspec_models_cxc')
 
 include_dir = out_dir / 'include'
@@ -149,22 +152,49 @@ helper("apply_templates.py", str(modeldat), xspec_version,
 #
 # Create the extension module.
 #
+nanobind_dir = Path(nanobind.__file__).parent
+
+# nb_combined.cpp includes its sibling sources and headers with quoted
+# includes, so they all have to be copied over (the .cpp files listed
+# there are pulled in by the compiler; only the headers are needed
+# here). The copy is made outside the package directory so that the
+# runtime sources do not end up in the package.
+#
+nb_runtime_dir = Path("nb_runtime_build")
+nb_runtime_dir.mkdir(exist_ok=True)
+for src in (nanobind_dir / "src").iterdir():
+    if src.suffix in [".cpp", ".h"]:
+        (nb_runtime_dir / src.name).write_text(src.read_text())
+
+nb_runtime = nb_runtime_dir / "nb_combined.cpp"
+
+extra_compile_args = ["-std=c++17", "-fvisibility=hidden"]
+extra_define_macros = [("NB_COMPACT_ASSERTIONS", None)]
+if sys.platform == "win32":
+    extra_compile_args = ["/std:c++17", "/Zc:__cplusplus"]
+    extra_define_macros = []
+else:
+    # Needed by the nanobind runtime (it does some type punning).
+    extra_compile_args.append("-fno-strict-aliasing")
+
 ext_modules = [
-    Pybind11Extension("xspec_models_cxc._compiled",
-                      [str(compiled_code)],
-                      depends=[str('template/xspec.cxx')  # is this useful?
-                      ],
-                      cxx_std=11,
-                      include_dirs=[str(include_dir),
-                                    str(xspec_inc_dir)],
-                      library_dirs=[str(xspec_lib_dir)],
-                      libraries=xspec_libs,
-                      define_macros=macros
-                  ),
+    Extension("xspec_models_cxc._compiled",
+              [str(compiled_code), str(nb_runtime)],
+              depends=[str('template/xspec.cxx')  # is this useful?
+              ],
+              include_dirs=[str(include_dir),
+                            str(xspec_inc_dir),
+                            str(nanobind_dir / "include"),
+                            str(nanobind_dir / "ext" / "robin_map" / "include")],
+              library_dirs=[str(xspec_lib_dir)],
+              libraries=xspec_libs,
+              define_macros=[('VERSION_INFO', __version__)] + extra_define_macros,
+              extra_compile_args=extra_compile_args,
+              language="c++"
+          ),
 ]
 
 setup(
     version=__version__,
     ext_modules=ext_modules,
-    cmdclass={"build_ext": build_ext},
 )
